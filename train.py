@@ -104,14 +104,20 @@ def main(gpu, ngpus_per_node, configs):
 
     metrics_engine = MetricsEngine(use_accel)
 
-    training_manager = TrainingManager()
+    training_manager = TrainingManager(
+        configs=configs,
+        model=model,
+        optimizer=optimizer,
+        criterion=criterion,
+        train_dataloader=train_loader,
+        val_dataloader=val_loader,
+        metrics_engine=metrics_engine,
+        local_rank=device,
+        scheduler=None
+    )
 
     if configs.resume:
-        load_checkpoint(configs, device, model, optimizer, scheduler, metrics_engine)
-
-    if configs.evaluate:
-        validate(val_loader, model, criterion, metrics_engine, configs)
-        return
+        training_manager.load_checkpoint()
     
     training_manager.train()
 

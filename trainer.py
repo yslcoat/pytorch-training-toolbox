@@ -1,6 +1,9 @@
 import argparse
+from pathlib import Path
 from typing import Optional, cast
 import logging
+import shutil
+import os
 
 import torch
 import torch.nn as nn
@@ -49,11 +52,38 @@ class TrainingManager():
 
             self.metrics_engine = metrics_engine
     
-    def save_model(self):
-        if self.local_rank == 0:
-            state_dict = self.model.module.state_dict()
-            torch.save(state_dict, f"{self.configs.save_path}/model.pt")
-            logger.info(f"Model saved to {self.configs.save_path}/model.pt")
+    def save_checkpoint(self, state, path, is_best, filename="checkpoint.pth.tar"):
+        path.mkdir(parents=True, exist_ok=True)
+        torch.save(state, Path(path, filename))
+        if is_best:
+            shutil.copyfile(
+                Path(path, filename), Path(path, "model_best.pth.tar")
+            )
+
+    def load_checkpoint(self) -> None:
+        if os.path.isfile(self.configs.resume):
+            logging.info("=> loading checkpoint '{}'".format(self.configs.resume))
+            if self.configs.gpu is None:
+                checkpoint = torch.load(self.configs.resume, weights_only=False)
+            else:
+                loc = f"{self.device.type}:{self.configs.gpu}"
+                checkpoint = torch.load(self.configs.resume, map_location=loc)
+            self.configs.start_epoch = checkpoint["epoch"]
+            best_acc1 = checkpoint["best_acc1"]
+            if self.configs.gpu is not None:
+                best_acc1 = best_acc1.to(self.configs.gpu)
+            self.model.load_state_dict(checkpoint["state_dict"])
+            self.optimizer.load_state_dict(checkpoint["optimizer"])
+            self.scheduler.load_state_dict(checkpoint["scheduler"])
+            self.metrics_engine.batch_history = checkpoint["batch_history"]
+            self.metrics_engine.epoch_history = checkpoint["epoch_history"]
+            logging.info(
+                "=> loaded checkpoint '{}' (epoch {})".format(
+                    self.configs.resume, checkpoint["epoch"]
+                )
+            )
+        else:
+            logging.info("=> no checkpoint found at '{}'".format(self.configs.resume))
     
     def process_batch(self, inputs: torch.Tensor, targets: torch.Tensor):
         inputs = inputs.to(self.device)
@@ -98,4 +128,4 @@ class TrainingManager():
                 with torch.no_grad():
                     self.process_epoch(epoch, self.val_dataloader, self.model.training)
 
-        self.save_model()
+        self.save_checkpoint({}, self.configs.output_dir, self.configs.output_filename)
