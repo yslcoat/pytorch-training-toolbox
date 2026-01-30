@@ -2,7 +2,7 @@
 from typing import Protocol
 import torch.nn as nn
 
-from FeedForwardNeuralNetwork import FeedForwardNeuralNetwork
+from models.FeedForwardNeuralNetwork import FeedForwardNeuralNetwork
 
 
 class ModelBuilder(Protocol):
@@ -14,6 +14,7 @@ class FeedForwardNeuralNetworkBuilder(ModelBuilder):
     def build(self, model_configs) -> nn.Module:
         return FeedForwardNeuralNetwork(
             model_configs.input_size,
+            model_configs.n_layers,
             model_configs.hidden_dim,
             model_configs.output_size,
         )
