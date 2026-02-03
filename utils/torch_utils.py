@@ -5,6 +5,8 @@ import logging
 
 import torch
 import torch.backends.cudnn as cudnn
+import torch.distributed as dist
+
 
 def configure_training_device(configs):
     use_accel = not configs.no_accel and torch.accelerator.is_available()
@@ -16,6 +18,20 @@ def configure_training_device(configs):
         device = torch.device("cpu")
 
     return device
+
+
+def initialize_distributed_mode(gpu, ngpus_per_node, configs):
+    if configs.dist_url == "env://" and configs.rank == -1:
+            configs.rank = int(os.environ["RANK"])
+    if configs.multiprocessing_distributed:
+        configs.rank = configs.rank * ngpus_per_node + gpu
+    dist.init_process_group(
+        backend=configs.dist_backend,
+        init_method=configs.dist_url,
+        world_size=configs.world_size,
+        rank=configs.rank,
+    )
+    dist.barrier()
 
 
 def configure_multi_gpu_model(configs, model, device, ngpus_per_node):
@@ -33,11 +49,7 @@ def configure_multi_gpu_model(configs, model, device, ngpus_per_node):
                 model.cuda()
                 model = torch.nn.parallel.DistributedDataParallel(model)
     elif device.type == "cuda":
-        if configs.arch.startswith("alexnet") or configs.arch.startswith("vgg"):
-            model.features = torch.nn.DataParallel(model.features)
-            model.cuda()
-        else:
-            model = torch.nn.DataParallel(model).cuda()
+        model = torch.nn.DataParallel(model).cuda()
     else:
         model.to(device)
 

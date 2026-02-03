@@ -32,9 +32,9 @@ class TrainingManager():
         
             self.configs = configs
             self.local_rank = local_rank
+            self.model = model
 
             self.device = torch.device(f"cuda:{local_rank}")
-            self.model = DDP(model.to(self.device), device_ids=[local_rank])
 
             self.optimizer = optimizer
             self.scheduler = scheduler
