@@ -18,7 +18,6 @@ from utils.configs_parser import (
     parse_training_configs
 )
 from utils.torch_utils import (
-    configure_multi_gpu_model,
     configure_training_device,
     initialize_distributed_mode,
     enable_manual_seed,

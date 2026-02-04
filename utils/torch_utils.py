@@ -97,3 +97,5 @@ def configure_ddp(configs):
             )
     else:
         ngpus_per_node = 1
+
+    return ngpus_per_node
