@@ -23,9 +23,10 @@ from utils.torch_utils import (
     enable_manual_seed,
     configure_ddp
 )
+from metrics.metrics_engine import MetricsEngine
 
 
-def initialize_training(configs):
+def initialize_training(configs: TrainingConfig):
     if configs.seed_val is not None:
         enable_manual_seed(configs.seed_val)
 
