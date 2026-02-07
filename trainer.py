@@ -10,6 +10,8 @@ import torch.nn as nn
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data.distributed import DistributedSampler
 
+from metrics.metrics_engine import MetricsEngine
+
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(filename='training_log.log', encoding='utf-8', level=logging.DEBUG)
@@ -26,7 +28,7 @@ class TrainingManager():
             criterion,
             train_dataloader: torch.utils.data.DataLoader,
             val_dataloader: torch.utils.data.DataLoader | None,
-            metrics_engine,
+            metrics_engine: MetricsEngine,
             local_rank: int,
             ):
         
@@ -67,14 +69,15 @@ class TrainingManager():
                 checkpoint = torch.load(self.configs.resume, weights_only=False)
             else:
                 loc = f"{self.device.type}:{self.configs.gpu}"
-                checkpoint = torch.load(self.configs.resume, map_location=loc)
+                checkpoint = torch.load(self.configs.resume, map_location=loc, weights_only=False)
             self.configs.start_epoch = checkpoint["epoch"]
-            best_acc1 = checkpoint["best_acc1"]
+            self.best_loss = checkpoint.get("best_loss", float('inf'))
             if self.configs.gpu is not None:
-                best_acc1 = best_acc1.to(self.configs.gpu)
+                best_loss = best_loss.to(self.configs.gpu)
             self.model.load_state_dict(checkpoint["state_dict"])
             self.optimizer.load_state_dict(checkpoint["optimizer"])
-            self.scheduler.load_state_dict(checkpoint["scheduler"])
+            if self.scheduler and "scheduler" in checkpoint:
+                self.scheduler.load_state_dict(checkpoint["scheduler"])
             self.metrics_engine.batch_history = checkpoint["batch_history"]
             self.metrics_engine.epoch_history = checkpoint["epoch_history"]
             logging.info(

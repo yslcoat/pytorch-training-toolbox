@@ -1,9 +1,3 @@
-import random
-import warnings
-import logging
-import os
-import datetime
-
 import torch
 import torch.multiprocessing as mp
 import torch.nn as nn
@@ -13,6 +7,7 @@ from torch.utils.data import Subset
 
 from trainer import TrainingManager
 from models.models import create_model
+from datasets.datasets import create_dataset
 from utils.configs_parser import (
     TrainingConfig,
     parse_training_configs
@@ -27,8 +22,8 @@ from metrics.metrics_engine import MetricsEngine
 
 
 def initialize_training(configs: TrainingConfig):
-    if configs.seed_val is not None:
-        enable_manual_seed(configs.seed_val)
+    if configs.seed is not None:
+        enable_manual_seed(configs.seed)
 
     ngpus_per_node = configure_ddp(configs)
 
@@ -39,7 +34,7 @@ def initialize_training(configs: TrainingConfig):
         main(configs.gpu, ngpus_per_node, configs)
 
 
-def main(gpu, ngpus_per_node, configs):
+def main(gpu, ngpus_per_node: int, configs: TrainingConfig):
     configs.gpu = gpu
 
     use_accel = not configs.no_accel and torch.accelerator.is_available()
@@ -51,7 +46,10 @@ def main(gpu, ngpus_per_node, configs):
 
     model = create_model(configs, device, ngpus_per_node)
 
-    train_loader, val_loader, train_sampler, _ = build_data_loaders(configs)
+    train_dataset = create_dataset(configs)
+    val_dataset = create_dataset(configs)
+
+    train_loader, val_loader = build_dataloaders(configs)
 
     criterion = nn.CrossEntropyLoss().to(device)
 

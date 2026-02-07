@@ -55,6 +55,7 @@ class TrainingConfig:
     dist_url: str = "tcp://224.66.41.62:23456"
     dist_backend: str = "nccl"
     multiprocessing_distributed: bool = False
+    distributed = world_size > 1 or multiprocessing_distributed
 
     def __post_init__(self):
         """
