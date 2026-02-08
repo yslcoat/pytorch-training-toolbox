@@ -4,6 +4,14 @@ import os
 from pathlib import Path
 from typing import Optional
 from dataclasses import dataclass, field
+from models.models import MODEL_REGISTRY
+from datasets.datasets import DATASET_REGISTRY
+from metrics.metrics_functions import METRICS_FUNC_REGISTRY
+
+"""
+Some refactoring is needed here. We should have different dataclasses for different modules. The metrics configuration could be separated from the training configuration,
+model configs, dataset configs etc should also have their own dataclasses. 
+"""
 
 
 @dataclass
@@ -57,6 +65,8 @@ class TrainingConfig:
     multiprocessing_distributed: bool = False
     distributed = world_size > 1 or multiprocessing_distributed
 
+    metrics: list[str] = field(default_factory=lambda: ["top_k_accuracy"])
+
     def __post_init__(self):
         """
         Might use this for validation of inputs, will see
@@ -69,8 +79,6 @@ class TrainingConfig:
 
 def parse_training_configs() -> TrainingConfig:
     parser = argparse.ArgumentParser("Configuration parser for model training")
-
-    model_names = ["resnet18", "vit", "feedforward"]
 
     # Data configs
     data_group = parser.add_argument_group("Data Settings")
@@ -96,9 +104,9 @@ def parse_training_configs() -> TrainingConfig:
         "-a",
         "--arch",
         metavar="ARCH",
-        default="resnet18",
-        choices=model_names,
-        help="model architecture: " + " | ".join(model_names) + " (default: resnet18)",
+        default="FeedForwardNeuralNetwork",
+        choices=list(MODEL_REGISTRY.keys()),
+        help="List of model architectures (choices: " + ", ".join(MODEL_REGISTRY.keys()) + ")"
     )
     model_group.add_argument(
         "--pretrained", action="store_true", help="use pre-trained model"
@@ -182,6 +190,13 @@ def parse_training_configs() -> TrainingConfig:
 
     # Logging configs
     log_group = parser.add_argument_group("Logging & Output")
+    log_group.add_argument(
+        "--metrics",
+        nargs="+",
+        default=["top_k_accuracy"],
+        choices=list(METRICS_FUNC_REGISTRY.keys()),
+        help="List of metrics to track (choices: " + ", ".join(METRICS_FUNC_REGISTRY.keys()) + ")"
+    )
     log_group.add_argument(
         "-p", "--print-freq", default=10, type=int, metavar="N", help="print frequency"
     )

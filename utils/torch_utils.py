@@ -53,6 +53,8 @@ def configure_multi_gpu_model(configs, model, device, ngpus_per_node):
     else:
         model.to(device)
 
+    return model
+
 
 def enable_manual_seed(seed_val):
     random.seed(seed_val)

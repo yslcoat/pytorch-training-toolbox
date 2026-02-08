@@ -42,6 +42,6 @@ def create_model(configs, device, ngpus_per_node):
     if not configs.use_accel:
         logging.info("using CPU, this will be slow")
     else:
-        configure_multi_gpu_model(configs, model, device, ngpus_per_node)
+        model = configure_multi_gpu_model(configs, model, device, ngpus_per_node)
 
     return model

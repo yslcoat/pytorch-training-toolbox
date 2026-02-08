@@ -33,10 +33,14 @@ class TrainingManager():
             ):
         
             self.configs = configs
-            self.local_rank = local_rank
             self.model = model
 
-            self.device = torch.device(f"cuda:{local_rank}")
+            if isinstance(local_rank, torch.device):
+                self.device = local_rank
+                self.local_rank = 0
+            else:
+                self.local_rank = local_rank
+                self.device = torch.device(f"cuda:{local_rank}")
 
             self.optimizer = optimizer
             self.scheduler = scheduler
@@ -45,12 +49,7 @@ class TrainingManager():
             self.train_dataloader = train_dataloader
             self.val_dataloader = val_dataloader
             
-            train_sampler = train_dataloader.sampler
-            if isinstance(train_sampler, DistributedSampler):
-                self.train_sampler = cast(DistributedSampler, train_dataloader.sampler)
-            else:
-                raise TypeError("DDP Trainer requires a DistributedSampler")
-            
+            self.train_sampler = train_dataloader.sampler            
 
             self.metrics_engine = metrics_engine
     
@@ -103,7 +102,7 @@ class TrainingManager():
         self.metrics_engine.process_batch_metrics(outputs, targets, loss.item())
     
     def process_epoch(self, epoch, dataloader, is_training):
-        if is_training:
+        if is_training and hasattr(self.train_sampler, "set_epoch"):
             self.train_sampler.set_epoch(epoch)
 
         for inputs, targets in dataloader:

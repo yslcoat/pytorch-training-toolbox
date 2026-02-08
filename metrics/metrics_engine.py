@@ -4,9 +4,12 @@ from typing import Dict, List, Callable
 
 import torch.distributed as dist
 
+from metrics.metrics_functions import METRICS_FUNC_REGISTRY
+
 
 class AverageMeter:
-    def __init__(self):
+    def __init__(self, use_accel: bool = False):
+        self.use_accel = use_accel
         self.reset()
 
     def reset(self):
@@ -22,7 +25,7 @@ class AverageMeter:
         self.avg = self.sum / self.count
 
     def all_reduce(self):
-        if self.use_accel: # TODO: Wanna make this smarter
+        if self.use_accel: # TODO: Wanna make this smarter. Could this be configured in the configs? 
             device = torch.accelerator.current_accelerator()
         else:
             device = torch.device("cpu")
@@ -37,15 +40,21 @@ class AverageMeter:
 
 
 class MetricsEngine:
-    def __init__(self, metric_functions: Dict[str, Callable]):
-        self.metric_functions = metric_functions
+    def __init__(self, metrics_configs):
+        self.metric_functions: Dict[str, Callable] = {
+            name: METRICS_FUNC_REGISTRY[name] 
+            for name in metrics_configs.metrics 
+            if name in METRICS_FUNC_REGISTRY
+        }
+        self.use_accel = not metrics_configs.no_accel and torch.accelerator.is_available()
         self.batch_history = []
         self.epoch_history = []
         
         self.meters: Dict[str, AverageMeter] = {
-            name: AverageMeter() for name in metric_functions.keys()
+            name: AverageMeter(use_accel=self.use_accel) 
+            for name in self.metric_functions.keys()
         }
-        self.meters["loss"] = AverageMeter()
+        self.meters["loss"] = AverageMeter(use_accel=self.use_accel)
 
     def process_batch_metrics(self, outputs: torch.Tensor, targets: torch.Tensor, loss_val: float):
         batch_results = {"loss": loss_val}
