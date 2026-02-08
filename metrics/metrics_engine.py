@@ -2,9 +2,10 @@ import torch
 import logging
 from typing import Dict, List, Callable
 
+import torch.nn as nn
 import torch.distributed as dist
 
-from metrics.metrics_functions import METRICS_FUNC_REGISTRY
+from metrics.metrics import METRICS_REGISTRY
 
 
 class AverageMeter:
@@ -41,10 +42,10 @@ class AverageMeter:
 
 class MetricsEngine:
     def __init__(self, metrics_configs):
-        self.metric_functions: Dict[str, Callable] = {
-            name: METRICS_FUNC_REGISTRY[name] 
+        self.metric_functions: Dict[str, nn.Module] = {
+            name: METRICS_REGISTRY[name] 
             for name in metrics_configs.metrics 
-            if name in METRICS_FUNC_REGISTRY
+            if name in METRICS_REGISTRY
         }
         self.use_accel = not metrics_configs.no_accel and torch.accelerator.is_available()
         self.batch_history = []

@@ -59,7 +59,7 @@ def main(gpu, ngpus_per_node: int, configs: TrainingConfig):
     ) # Same here as criterion
 
     main_scheduler = CosineAnnealingLR(
-        optimizer, T_max=len(train_loader) * configs.epochs - configs.warmup_period, eta_min=1e-6
+        optimizer, T_max=configs.epochs - configs.warmup_period, eta_min=1e-6
     ) # Same here as criterion
 
     warmup_scheduler = LinearLR(

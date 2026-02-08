@@ -6,7 +6,7 @@ from typing import Optional
 from dataclasses import dataclass, field
 from models.models import MODEL_REGISTRY
 from datasets.datasets import DATASET_REGISTRY
-from metrics.metrics_functions import METRICS_FUNC_REGISTRY
+from metrics.metrics import METRICS_REGISTRY
 
 """
 Some refactoring is needed here. We should have different dataclasses for different modules. The metrics configuration could be separated from the training configuration,
@@ -194,8 +194,8 @@ def parse_training_configs() -> TrainingConfig:
         "--metrics",
         nargs="+",
         default=["top_k_accuracy"],
-        choices=list(METRICS_FUNC_REGISTRY.keys()),
-        help="List of metrics to track (choices: " + ", ".join(METRICS_FUNC_REGISTRY.keys()) + ")"
+        choices=list(METRICS_REGISTRY.keys()),
+        help="List of metrics to track (choices: " + ", ".join(METRICS_REGISTRY.keys()) + ")"
     )
     log_group.add_argument(
         "-p", "--print-freq", default=10, type=int, metavar="N", help="print frequency"

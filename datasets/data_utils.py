@@ -14,7 +14,7 @@ def create_dataloader(dataset, configs, collate_fn=None, partition='train') -> D
     return DataLoader(
         dataset,
         batch_size=configs.batch_size,
-        shuffle=configs.shuffle,
+        shuffle=False if sampler is not None else configs.shuffle,
         num_workers=configs.num_workers,
         pin_memory=configs.pin_memory
     )
