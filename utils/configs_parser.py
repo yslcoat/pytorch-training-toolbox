@@ -1,36 +1,37 @@
 import argparse
 import datetime
-import os
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List, Tuple, Union, Dict, Any
 from dataclasses import dataclass, field
+
 from models.models import MODEL_REGISTRY
 from datasets.datasets import DATASET_REGISTRY
 from metrics.metrics import METRICS_REGISTRY
 
-"""
-Some refactoring is needed here. We should have different dataclasses for different modules. The metrics configuration could be separated from the training configuration,
-model configs, dataset configs etc should also have their own dataclasses. 
-"""
+
+@dataclass
+class FeedForwardNetworkConfig:
+    input_size: int = 784
+    n_layers: int = 3
+    hidden_dim: int = 256
+    output_dim: int = 10
+    dropout: float = 0.1
 
 
 @dataclass
-class TrainingConfig:
-    training_id: str = field(
-        default_factory=lambda: datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    )
-    output_parent_dir: Path = Path("./outputs")
-    output_dir: Path = field(init=False)
-    output_filename: str = "checkpoint.pth.tar"
-    seed: Optional[int] = None
-    print_freq: int = 10
-    resume: str = ""
-    evaluate: bool = False
+class DummyDatasetConfig:
+    n_samples: int = 10000
+    inputs_tensor_shape: List[int] = field(default_factory=lambda: [784])
+    num_classes: int = 10
 
-    dummy_data: bool = False
-    data_dir: Optional[Path] = None
-    workers: int = 4
 
+@dataclass
+class TopKAccuracyConfig:
+    top_k: List[int] = field(default_factory=lambda: [1, 5])
+
+
+@dataclass
+class OptimizationConfig:
     epochs: int = 90
     start_epoch: int = 0
     batch_size: int = 256
@@ -38,214 +39,128 @@ class TrainingConfig:
     momentum: float = 0.9
     warmup_period: int = 10000
     weight_decay: float = 0.05
-
-    arch: str = "resnet18"
-    pretrained: bool = False
-
-    image_size: int = 224
-    patch_size: int = 16
-    num_classes: int = 1000
-    dim: int = 1024
-    depth: int = 6
-    heads: int = 16
-    mlp_dim: int = 2048
-    dropout: float = 0.1
-    emb_dropout: float = 0.1
-
     mixup: bool = False
-    randaug_num_ops: int = 2
-    randaug_magnitude: int = 9
 
-    gpu: Optional[int] = None
-    no_accel: bool = False
+
+@dataclass
+class DistributedConfig:
     world_size: int = -1
     rank: int = -1
     dist_url: str = "tcp://224.66.41.62:23456"
     dist_backend: str = "nccl"
+    gpu: Optional[int] = None
+    no_accel: bool = False
     multiprocessing_distributed: bool = False
-    distributed = world_size > 1 or multiprocessing_distributed
 
-    metrics: list[str] = field(default_factory=lambda: ["top_k_accuracy"])
+    distributed: bool = field(init=False)
 
     def __post_init__(self):
-        """
-        Might use this for validation of inputs, will see
-        """
+        self.distributed = self.world_size > 1 or self.multiprocessing_distributed
+
+
+@dataclass
+class LoggingConfig:
+    training_id: str = field(
+        default_factory=lambda: datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    )
+    output_parent_dir: Path = Path("./outputs")
+    output_filename: str = "checkpoint.pth.tar"
+    print_freq: int = 10
+    resume: str = ""
+    evaluate: bool = False
+    seed: Optional[int] = None
+
+    active_metrics: List[str] = field(default_factory=lambda: ["top_k_accuracy"])
+
+    output_dir: Path = field(init=False)
+
+    def __post_init__(self):
         self.output_dir = self.output_parent_dir / self.training_id
 
-        if not self.dummy_data and self.data_dir is None:
-            pass
+
+@dataclass
+class TrainingConfig:
+    optim: OptimizationConfig
+    dist: DistributedConfig
+    logging: LoggingConfig
+
+    model_config: FeedForwardNetworkConfig
+    dataset_config: DummyDatasetConfig
+
+    metrics_config: Dict[str, Any]
 
 
 def parse_training_configs() -> TrainingConfig:
     parser = argparse.ArgumentParser("Configuration parser for model training")
 
-    # Data configs
-    data_group = parser.add_argument_group("Data Settings")
-    source_group = data_group.add_mutually_exclusive_group()
-    source_group.add_argument(
-        "--dummy_data", action="store_true", help="Specify to use dummy data."
+    optim_group = parser.add_argument_group("Optimization")
+    optim_group.add_argument("--epochs", default=90, type=int)
+    optim_group.add_argument("--batch-size", default=256, type=int)
+    optim_group.add_argument("--lr", default=5e-4, type=float)
+
+    dist_group = parser.add_argument_group("Distributed")
+    dist_group.add_argument("--world-size", default=-1, type=int)
+    dist_group.add_argument("--gpu", default=None, type=int)
+
+    log_group = parser.add_argument_group("Logging")
+    log_group.add_argument("--metrics", nargs="+", default=["top_k_accuracy"])
+    log_group.add_argument("--resume", default="", type=str)
+
+    selection_group = parser.add_argument_group("Component Selection")
+    selection_group.add_argument(
+        "--arch", default="FeedForwardNeuralNetwork", choices=MODEL_REGISTRY.keys()
     )
-    source_group.add_argument(
-        "-d", "--data_dir", type=Path, help="Directory containing training data."
-    )
-    data_group.add_argument(
-        "-j",
-        "--workers",
-        default=4,
-        type=int,
-        metavar="N",
-        help="number of data loading workers (default: 4)",
+    selection_group.add_argument(
+        "--dataset", default="DummyDataset", choices=DATASET_REGISTRY.keys()
     )
 
-    # Model configs
-    model_group = parser.add_argument_group("Model Configuration")
-    model_group.add_argument(
-        "-a",
-        "--arch",
-        metavar="ARCH",
-        default="FeedForwardNeuralNetwork",
-        choices=list(MODEL_REGISTRY.keys()),
-        help="List of model architectures (choices: " + ", ".join(MODEL_REGISTRY.keys()) + ")"
-    )
-    model_group.add_argument(
-        "--pretrained", action="store_true", help="use pre-trained model"
-    )
+    ff_group = parser.add_argument_group("Model: FeedForward")
+    ff_group.add_argument("--ff-input-size", default=784, type=int)
+    ff_group.add_argument("--ff-n-layers", default=3, type=int)
+    ff_group.add_argument("--ff-hidden-dim", default=256, type=int)
+    ff_group.add_argument("--ff-output-dim", default=10, type=int)
 
-    # ViT configs
-    model_group.add_argument(
-        "--image_size", type=int, default=224, help="size of input image to vit."
-    )
-    model_group.add_argument(
-        "--patch_size", type=int, default=16, help="size of patches."
-    )
-    model_group.add_argument(
-        "--num_classes", type=int, default=1000, help="number of classes in dataset."
-    )
-    model_group.add_argument(
-        "--dim", type=int, default=1024, help="last dimension of output tensor."
-    )
-    model_group.add_argument(
-        "--depth", type=int, default=6, help="number of transformer blocks."
-    )
-    model_group.add_argument(
-        "--heads", type=int, default=16, help="number of heads in multi-head attention."
-    )
-    model_group.add_argument(
-        "--mlp_dim", type=int, default=2048, help="dimension of mlp."
-    )
-    model_group.add_argument("--dropout", type=float, default=0.1, help="dropout rate.")
-    model_group.add_argument(
-        "--emb_dropout", type=float, default=0.1, help="embedding dropout rate."
-    )
+    dummy_group = parser.add_argument_group("Dataset: Dummy")
+    dummy_group.add_argument("--dummy-n-samples", default=10000, type=int)
+    dummy_group.add_argument("--dummy-input-shape", default=[784], nargs="+", type=int)
 
-    # Optimization/training configs
-    optim_group = parser.add_argument_group("Optimization & Training")
-    optim_group.add_argument(
-        "--epochs",
-        default=90,
-        type=int,
-        metavar="N",
-        help="number of total epochs to run",
-    )
-    optim_group.add_argument(
-        "--start-epoch", default=0, type=int, metavar="N", help="manual epoch number"
-    )
-    optim_group.add_argument(
-        "-b", "--batch-size", default=256, type=int, metavar="N", help="mini-batch size"
-    )
-    optim_group.add_argument(
-        "--lr",
-        "--learning-rate",
-        default=5e-4,
-        type=float,
-        metavar="LR",
-        dest="lr",
-        help="initial learning rate",
-    )
-    optim_group.add_argument(
-        "--momentum", default=0.9, type=float, metavar="M", help="momentum"
-    )
-    optim_group.add_argument(
-        "--warmup_period", type=int, default=10000, help="number of warmup steps"
-    )
-    optim_group.add_argument(
-        "--wd",
-        "--weight-decay",
-        default=0.05,
-        type=float,
-        metavar="W",
-        dest="weight_decay",
-        help="weight decay",
-    )
-    optim_group.add_argument(
-        "--mixup", action="store_true", help="applies mixup augmentation"
-    )
-    optim_group.add_argument(
-        "--randaug_num_ops", type=int, default=2, help="RandAugment number of ops"
-    )
-    optim_group.add_argument(
-        "--randaug_magnitude", type=int, default=9, help="RandAugment magnitude"
-    )
-
-    # Logging configs
-    log_group = parser.add_argument_group("Logging & Output")
-    log_group.add_argument(
-        "--metrics",
-        nargs="+",
-        default=["top_k_accuracy"],
-        choices=list(METRICS_REGISTRY.keys()),
-        help="List of metrics to track (choices: " + ", ".join(METRICS_REGISTRY.keys()) + ")"
-    )
-    log_group.add_argument(
-        "-p", "--print-freq", default=10, type=int, metavar="N", help="print frequency"
-    )
-    log_group.add_argument(
-        "-o",
-        "--output_parent_dir",
-        default=Path("./outputs"),
-        type=Path,
-        help="parent dir for storage",
-    )
-    log_group.add_argument(
-        "--resume",
-        default="",
-        type=str,
-        metavar="PATH",
-        help="path to latest checkpoint",
-    )
-    log_group.add_argument(
-        "-e", "--evaluate", action="store_true", help="evaluate model on validation set"
-    )
-
-    # Distributed training configs
-    dist_group = parser.add_argument_group("Distributed Training")
-    dist_group.add_argument(
-        "--world-size", default=-1, type=int, help="number of nodes"
-    )
-    dist_group.add_argument("--rank", default=-1, type=int, help="node rank")
-    dist_group.add_argument(
-        "--dist-url",
-        default="tcp://224.66.41.62:23456",
-        type=str,
-        help="url for distributed training",
-    )
-    dist_group.add_argument(
-        "--dist-backend", default="nccl", type=str, help="distributed backend"
-    )
-    dist_group.add_argument(
-        "--seed", default=None, type=int, help="seed for initializing training."
-    )
-    dist_group.add_argument("--gpu", default=None, type=int, help="GPU id to use.")
-    dist_group.add_argument(
-        "--no-accel", action="store_true", help="disables accelerator"
-    )
-    dist_group.add_argument(
-        "--multiprocessing-distributed",
-        action="store_true",
-        help="Use multi-processing distributed training",
-    )
+    topk_group = parser.add_argument_group("Metric: TopK")
+    topk_group.add_argument("--topk-values", default=[1, 5], nargs="+", type=int)
 
     args = parser.parse_args()
 
-    return TrainingConfig(**vars(args))
+    if args.arch == "FeedForwardNeuralNetwork":
+        model_config = FeedForwardNetworkConfig(
+            input_size=args.ff_input_size,
+            n_layers=args.ff_n_layers,
+            hidden_dim=args.ff_hidden_dim,
+            output_dim=args.ff_output_dim,
+        )
+    else:
+        raise ValueError(f"No config defined for arch: {args.arch}")
+
+    if args.dataset == "DummyDataset":
+        dataset_config = DummyDatasetConfig(
+            n_samples=args.dummy_n_samples,
+            inputs_tensor_shape=args.dummy_input_shape,
+            num_classes=args.ff_output_dim,
+        )
+    else:
+        raise ValueError(f"No config defined for dataset: {args.dataset}")
+
+    metrics_config_map = {}
+    if "top_k_accuracy" in args.metrics:
+        metrics_config_map["top_k_accuracy"] = TopKAccuracyConfig(
+            top_k=args.topk_values
+        )
+
+    return TrainingConfig(
+        optim=OptimizationConfig(
+            epochs=args.epochs, batch_size=args.batch_size, lr=args.lr
+        ),
+        dist=DistributedConfig(world_size=args.world_size, gpu=args.gpu),
+        logging=LoggingConfig(resume=args.resume, active_metrics=args.metrics),
+        model_config=model_config,
+        dataset_config=dataset_config,
+        metrics_config=metrics_config_map,
+    )
