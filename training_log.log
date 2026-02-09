@@ -26,3 +26,32 @@ INFO:root:=> creating model 'FeedForwardNeuralNetwork'
 INFO:root:=> creating dataset 'DummyDataset'
 INFO:root:=> creating dataset 'DummyDataset'
 INFO:trainer:Epoch: 0
+INFO:root:Using device: cuda
+INFO:root:=> creating model 'FeedForwardNeuralNetwork'
+INFO:root:=> creating dataset 'DummyDataset'
+INFO:root:=> creating dataset 'DummyDataset'
+INFO:trainer:Epoch: 0
+INFO:root:Using device: cuda
+INFO:root:=> creating model 'FeedForwardNeuralNetwork'
+INFO:root:=> creating dataset 'DummyDataset'
+INFO:root:=> creating dataset 'DummyDataset'
+INFO:root:Using device: cuda
+INFO:root:=> creating model 'FeedForwardNeuralNetwork'
+INFO:root:=> creating dataset 'DummyDataset'
+INFO:root:=> creating dataset 'DummyDataset'
+INFO:trainer:Epoch: 0
+INFO:root:Using device: cuda
+INFO:root:=> creating model 'FeedForwardNeuralNetwork'
+INFO:root:=> creating dataset 'DummyDataset'
+INFO:root:=> creating dataset 'DummyDataset'
+INFO:trainer:Epoch: 0
+INFO:root:Using device: cuda
+INFO:root:=> creating model 'FeedForwardNeuralNetwork'
+INFO:root:=> creating dataset 'DummyDataset'
+INFO:root:=> creating dataset 'DummyDataset'
+INFO:trainer:Epoch: 0
+INFO:root:Using device: cuda
+INFO:root:=> creating model 'FeedForwardNeuralNetwork'
+INFO:root:=> creating dataset 'DummyDataset'
+INFO:root:=> creating dataset 'DummyDataset'
+INFO:trainer:Epoch: 0

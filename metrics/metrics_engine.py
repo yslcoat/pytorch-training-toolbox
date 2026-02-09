@@ -43,11 +43,13 @@ class AverageMeter:
 
 class MetricsEngine:
     def __init__(self, configs: TrainingConfig):
-        self.metric_functions: Dict[str, nn.Module] = {
-            name: METRICS_REGISTRY[name] 
-            for name in configs.logging.active_metrics 
-            if name in METRICS_REGISTRY
-        }
+        self.metric_functions: Dict[str, nn.Module] = {}
+        for name in configs.logging.active_metrics:
+            if name in METRICS_REGISTRY:
+                builder = METRICS_REGISTRY[name]
+                metric_config = configs.metrics_config.get(name)
+                self.metric_functions[name] = builder.build(metric_config)
+
         self.use_accel = not configs.dist.no_accel and torch.accelerator.is_available()
         self.batch_history = []
         self.epoch_history = []

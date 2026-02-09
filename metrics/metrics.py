@@ -32,5 +32,4 @@ def create_model(configs, device, ngpus_per_node):
 
     metrics = builder.build(configs)
 
-
     return metrics
