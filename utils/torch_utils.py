@@ -7,12 +7,14 @@ import torch
 import torch.backends.cudnn as cudnn
 import torch.distributed as dist
 
+from .configs import *
 
-def configure_training_device(configs):
-    use_accel = not configs.no_accel and torch.accelerator.is_available()
+
+def configure_training_device(configs: TrainingConfig):
+    use_accel = not configs.dist.no_accel and torch.accelerator.is_available()
     if use_accel:
-        if configs.gpu is not None:
-            torch.accelerator.set_device_index(configs.gpu)
+        if configs.dist.gpu is not None:
+            torch.accelerator.set_device_index(configs.dist.gpu)
         device = torch.accelerator.current_accelerator()
     else:
         device = torch.device("cpu")
@@ -35,15 +37,15 @@ def initialize_distributed_mode(gpu, ngpus_per_node, configs):
 
 
 def configure_multi_gpu_model(configs, model, device, ngpus_per_node):
-    if configs.distributed:
+    if configs.dist.distributed:
         if device.type == "cuda":
-            if configs.gpu is not None:
-                torch.cuda.set_device(configs.gpu)
+            if configs.dist.gpu is not None:
+                torch.cuda.set_device(configs.dist.gpu)
                 model.cuda(device)
                 configs.batch_size = int(configs.batch_size / ngpus_per_node)
                 configs.workers = int((configs.workers + ngpus_per_node - 1) / ngpus_per_node)
                 model = torch.nn.parallel.DistributedDataParallel(
-                    model, device_ids=[configs.gpu]
+                    model, device_ids=[configs.dist.gpu]
                 )
             else:
                 model.cuda()
@@ -70,19 +72,19 @@ def enable_manual_seed(seed_val):
     )
 
 
-def configure_ddp(configs):
-    if configs.gpu is not None:
+def configure_ddp(configs: TrainingConfig):
+    if configs.dist.gpu is not None:
         warnings.warn(
             "You have chosen a specific GPU. This will completely "
             "disable data parallelism."
         )
 
-    if configs.dist_url == "env://" and configs.world_size == -1:
-        configs.world_size = int(os.environ["WORLD_SIZE"])
+    if configs.dist.dist_url == "env://" and configs.dist.world_size == -1:
+        configs.dist.world_size = int(os.environ["WORLD_SIZE"])
 
-    configs.distributed = configs.world_size > 1 or configs.multiprocessing_distributed
+    configs.dist.distributed = configs.dist.world_size > 1 or configs.dist.multiprocessing_distributed
 
-    use_accel = not configs.no_accel and torch.accelerator.is_available()
+    use_accel = not configs.dist.no_accel and torch.accelerator.is_available()
 
     if use_accel:
         device = torch.accelerator.current_accelerator()
@@ -93,7 +95,7 @@ def configure_ddp(configs):
 
     if device.type == "cuda":
         ngpus_per_node = torch.accelerator.device_count()
-        if ngpus_per_node == 1 and configs.dist_backend == "nccl":
+        if ngpus_per_node == 1 and configs.dist.dist_backend == "nccl":
             warnings.warn(
                 "nccl backend >=2.5 requires GPU count>1, see https://github.com/NVIDIA/nccl/issues/103 perhaps use 'gloo'"
             )

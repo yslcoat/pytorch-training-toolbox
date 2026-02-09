@@ -4,7 +4,7 @@ from typing import Protocol
 import torch.nn as nn
 from torch.utils.data import Dataset
 
-from dummy_dataset import DummyDataset
+from datasets.dummy_dataset import DummyDataset
 
 
 class DatasetBuilder(Protocol):
@@ -17,7 +17,7 @@ class DummyDatasetBuilder(DatasetBuilder):
         return DummyDataset(
             n_samples=configs.n_samples,
             inputs_tensor_shape=configs.inputs_tensor_shape,
-            targets_tensor_shape=configs.targets_tensor_shape,
+            num_classes=configs.num_classes,
         )
 
 

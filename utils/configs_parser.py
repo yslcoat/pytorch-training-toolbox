@@ -1,93 +1,19 @@
 import argparse
-import datetime
-from pathlib import Path
-from typing import Optional, List, Tuple, Union, Dict, Any
-from dataclasses import dataclass, field
 
 from models.models import MODEL_REGISTRY
 from datasets.datasets import DATASET_REGISTRY
 from metrics.metrics import METRICS_REGISTRY
 
 
-@dataclass
-class FeedForwardNetworkConfig:
-    input_size: int = 784
-    n_layers: int = 3
-    hidden_dim: int = 256
-    output_dim: int = 10
-    dropout: float = 0.1
-
-
-@dataclass
-class DummyDatasetConfig:
-    n_samples: int = 10000
-    inputs_tensor_shape: List[int] = field(default_factory=lambda: [784])
-    num_classes: int = 10
-
-
-@dataclass
-class TopKAccuracyConfig:
-    top_k: List[int] = field(default_factory=lambda: [1, 5])
-
-
-@dataclass
-class OptimizationConfig:
-    epochs: int = 90
-    start_epoch: int = 0
-    batch_size: int = 256
-    lr: float = 5e-4
-    momentum: float = 0.9
-    warmup_period: int = 10000
-    weight_decay: float = 0.05
-    mixup: bool = False
-
-
-@dataclass
-class DistributedConfig:
-    world_size: int = -1
-    rank: int = -1
-    dist_url: str = "tcp://224.66.41.62:23456"
-    dist_backend: str = "nccl"
-    gpu: Optional[int] = None
-    no_accel: bool = False
-    multiprocessing_distributed: bool = False
-
-    distributed: bool = field(init=False)
-
-    def __post_init__(self):
-        self.distributed = self.world_size > 1 or self.multiprocessing_distributed
-
-
-@dataclass
-class LoggingConfig:
-    training_id: str = field(
-        default_factory=lambda: datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    )
-    output_parent_dir: Path = Path("./outputs")
-    output_filename: str = "checkpoint.pth.tar"
-    print_freq: int = 10
-    resume: str = ""
-    evaluate: bool = False
-    seed: Optional[int] = None
-
-    active_metrics: List[str] = field(default_factory=lambda: ["top_k_accuracy"])
-
-    output_dir: Path = field(init=False)
-
-    def __post_init__(self):
-        self.output_dir = self.output_parent_dir / self.training_id
-
-
-@dataclass
-class TrainingConfig:
-    optim: OptimizationConfig
-    dist: DistributedConfig
-    logging: LoggingConfig
-
-    model_config: FeedForwardNetworkConfig
-    dataset_config: DummyDatasetConfig
-
-    metrics_config: Dict[str, Any]
+from utils.configs import (
+    TrainingConfig, 
+    FeedForwardNetworkConfig, 
+    DummyDatasetConfig, 
+    TopKAccuracyConfig,
+    OptimizationConfig,
+    DistributedConfig,
+    LoggingConfig
+)
 
 
 def parse_training_configs() -> TrainingConfig:
@@ -103,7 +29,7 @@ def parse_training_configs() -> TrainingConfig:
     dist_group.add_argument("--gpu", default=None, type=int)
 
     log_group = parser.add_argument_group("Logging")
-    log_group.add_argument("--metrics", nargs="+", default=["top_k_accuracy"])
+    log_group.add_argument("--metrics", nargs="+", default=["top_k_accuracy"], choices=METRICS_REGISTRY.keys())
     log_group.add_argument("--resume", default="", type=str)
 
     selection_group = parser.add_argument_group("Component Selection")
@@ -160,6 +86,8 @@ def parse_training_configs() -> TrainingConfig:
         ),
         dist=DistributedConfig(world_size=args.world_size, gpu=args.gpu),
         logging=LoggingConfig(resume=args.resume, active_metrics=args.metrics),
+        arch=args.arch,
+        dataset=args.dataset,
         model_config=model_config,
         dataset_config=dataset_config,
         metrics_config=metrics_config_map,

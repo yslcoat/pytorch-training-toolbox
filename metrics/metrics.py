@@ -3,7 +3,7 @@ import logging
 from typing import Protocol
 import torch.nn as nn
 
-from top_k_accuracy import TopKAccuracy
+from .top_k_accuracy import TopKAccuracy
 
 
 class MetricsBuilder(Protocol):

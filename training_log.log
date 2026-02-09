@@ -1,0 +1,6 @@
+INFO:root:Using device: cuda
+INFO:root:Using device: cuda
+INFO:root:Using device: cuda
+INFO:root:Using device: cuda
+INFO:root:Using device: cuda
+INFO:root:=> creating model 'FeedForwardNeuralNetwork'

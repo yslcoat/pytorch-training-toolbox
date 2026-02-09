@@ -22,26 +22,24 @@ from metrics.metrics_engine import MetricsEngine
 
 
 def initialize_training(configs: TrainingConfig):
-    if configs.seed is not None:
-        enable_manual_seed(configs.seed)
+    if configs.logging.seed is not None:
+        enable_manual_seed(configs.logging.seed)
 
     ngpus_per_node = configure_ddp(configs)
 
-    if configs.multiprocessing_distributed:
-        configs.world_size = ngpus_per_node * configs.world_size
+    if configs.dist.multiprocessing_distributed:
+        configs.dist.world_size = ngpus_per_node * configs.dist.world_size
         mp.spawn(main, nprocs=ngpus_per_node, configs=(ngpus_per_node, configs))
     else:
-        main(configs.gpu, ngpus_per_node, configs)
+        main(configs.dist.gpu, ngpus_per_node, configs)
 
 
 def main(gpu, ngpus_per_node: int, configs: TrainingConfig):
-    configs.gpu = gpu
-
-    use_accel = not configs.no_accel and torch.accelerator.is_available()
+    configs.dist.gpu = gpu
 
     device = configure_training_device(configs)
 
-    if configs.distributed:
+    if configs.dist.distributed:
         initialize_distributed_mode(gpu, ngpus_per_node, configs)
 
     model = create_model(configs, device, ngpus_per_node)
@@ -55,22 +53,22 @@ def main(gpu, ngpus_per_node: int, configs: TrainingConfig):
     criterion = nn.CrossEntropyLoss().to(device) # Maybe create util function with a registry of different loss functions instead of hardcoding, we'll see.
 
     optimizer = torch.optim.AdamW(
-        model.parameters(), configs.lr, weight_decay=configs.weight_decay
+        model.parameters(), configs.optim.lr, weight_decay=configs.optim.weight_decay
     ) # Same here as criterion
 
     main_scheduler = CosineAnnealingLR(
-        optimizer, T_max=configs.epochs - configs.warmup_period, eta_min=1e-6
+        optimizer, T_max=configs.optim.epochs - configs.optim.warmup_period, eta_min=1e-6
     ) # Same here as criterion
 
     warmup_scheduler = LinearLR(
-        optimizer, start_factor=0.01, total_iters=configs.warmup_period
+        optimizer, start_factor=0.01, total_iters=configs.optim.warmup_period
     ) # Same here as criterion
 
     scheduler = SequentialLR(
         optimizer,
         schedulers=[warmup_scheduler, main_scheduler],
-        milestones=[configs.warmup_period],
-    ) # Here too, should have some logic to simplify the entire optimizer setup tbh. 
+        milestones=[configs.optim.warmup_period],
+    ) # Here too, should have some logic to simplify the entire optimizer setup tbh.
 
     metrics_engine = MetricsEngine(configs) # Wonder if use_accel can be set in the config class. Need utility function for setting list of metric functions.
 
@@ -86,7 +84,7 @@ def main(gpu, ngpus_per_node: int, configs: TrainingConfig):
         scheduler=scheduler
     )
 
-    if configs.resume:
+    if configs.logging.resume:
         training_manager.load_checkpoint()
     
     training_manager.train()
