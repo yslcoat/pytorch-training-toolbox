@@ -39,6 +39,13 @@ class OptimizationConfig:
 
 
 @dataclass
+class DataLoaderConfig:
+    shuffle: bool = True
+    num_workers: int = 4
+    pin_memory: bool = True
+
+
+@dataclass
 class DistributedConfig:
     world_size: int = -1
     rank: int = -1
@@ -82,6 +89,7 @@ class TrainingConfig:
 
     arch: str 
     dataset: str
+    dataloader: DataLoaderConfig
 
     model_config: FeedForwardNetworkConfig
     dataset_config: DummyDatasetConfig

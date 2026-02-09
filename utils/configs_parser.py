@@ -12,6 +12,7 @@ from utils.configs import (
     TopKAccuracyConfig,
     OptimizationConfig,
     DistributedConfig,
+    DataLoaderConfig,
     LoggingConfig
 )
 
@@ -40,6 +41,11 @@ def parse_training_configs() -> TrainingConfig:
         "--dataset", default="DummyDataset", choices=DATASET_REGISTRY.keys()
     )
 
+    dataloader_group = parser.add_argument_group("DataLoader")
+    dataloader_group.add_argument("--dataloader-shuffle", default=True, type=bool)
+    dataloader_group.add_argument("--dataloader-num-workers", default=4, type=int)
+    dataloader_group.add_argument("--dataloader-pin-memory", default=True, type=bool)
+
     ff_group = parser.add_argument_group("Model: FeedForward")
     ff_group.add_argument("--ff-input-size", default=784, type=int)
     ff_group.add_argument("--ff-n-layers", default=3, type=int)
@@ -64,6 +70,12 @@ def parse_training_configs() -> TrainingConfig:
         )
     else:
         raise ValueError(f"No config defined for arch: {args.arch}")
+    
+    dataloader_config = DataLoaderConfig(
+            shuffle=args.dataloader_shuffle,
+            num_workers=args.dataloader_num_workers,
+            pin_memory=args.dataloader_pin_memory
+        )
 
     if args.dataset == "DummyDataset":
         dataset_config = DummyDatasetConfig(
@@ -89,6 +101,7 @@ def parse_training_configs() -> TrainingConfig:
         arch=args.arch,
         dataset=args.dataset,
         model_config=model_config,
+        dataloader=dataloader_config,
         dataset_config=dataset_config,
         metrics_config=metrics_config_map,
     )

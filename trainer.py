@@ -11,6 +11,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data.distributed import DistributedSampler
 
 from metrics.metrics_engine import MetricsEngine
+from utils.configs import TrainingConfig
 
 
 logger = logging.getLogger(__name__)
@@ -21,7 +22,7 @@ class TrainingManager():
     def __init__(
             self,
             *,
-            configs,
+            configs: TrainingConfig,
             model: nn.Module,
             optimizer: torch.optim.Optimizer,
             scheduler: torch.optim.lr_scheduler.LRScheduler | None,
@@ -62,17 +63,17 @@ class TrainingManager():
             )
 
     def load_checkpoint(self) -> None:
-        if os.path.isfile(self.configs.resume):
-            logging.info("=> loading checkpoint '{}'".format(self.configs.resume))
-            if self.configs.gpu is None:
-                checkpoint = torch.load(self.configs.resume, weights_only=False)
+        if os.path.isfile(self.configs.logging.resume):
+            logging.info("=> loading checkpoint '{}'".format(self.configs.logging.resume))
+            if self.configs.dist.gpu is None:
+                checkpoint = torch.load(self.configs.logging.resume, weights_only=False)
             else:
-                loc = f"{self.device.type}:{self.configs.gpu}"
-                checkpoint = torch.load(self.configs.resume, map_location=loc, weights_only=False)
-            self.configs.start_epoch = checkpoint["epoch"]
+                loc = f"{self.device.type}:{self.configs.dist.gpu}"
+                checkpoint = torch.load(self.configs.logging.resume, map_location=loc, weights_only=False)
+            self.configs.optim.start_epoch = checkpoint["epoch"]
             self.best_loss = checkpoint.get("best_loss", float('inf'))
-            if self.configs.gpu is not None:
-                best_loss = best_loss.to(self.configs.gpu)
+            if self.configs.dist.gpu is not None:
+                self.best_loss = self.best_loss.to(self.configs.dist.gpu)
             self.model.load_state_dict(checkpoint["state_dict"])
             self.optimizer.load_state_dict(checkpoint["optimizer"])
             if self.scheduler and "scheduler" in checkpoint:
@@ -81,12 +82,12 @@ class TrainingManager():
             self.metrics_engine.epoch_history = checkpoint["epoch_history"]
             logging.info(
                 "=> loaded checkpoint '{}' (epoch {})".format(
-                    self.configs.resume, checkpoint["epoch"]
+                    self.configs.logging.resume, checkpoint["epoch"]
                 )
             )
         else:
-            logging.info("=> no checkpoint found at '{}'".format(self.configs.resume))
-    
+            logging.info("=> no checkpoint found at '{}'".format(self.configs.logging.resume))
+
     def process_batch(self, inputs: torch.Tensor, targets: torch.Tensor):
         inputs = inputs.to(self.device)
         targets = targets.to(self.device)
@@ -115,7 +116,7 @@ class TrainingManager():
 
     
     def train(self):
-        for epoch in range(self.configs.n_epochs):
+        for epoch in range(self.configs.optim.epochs):
             if self.local_rank == 0:
                 logger.info(f"Epoch: {epoch}")
 
@@ -130,4 +131,4 @@ class TrainingManager():
                 with torch.no_grad():
                     self.process_epoch(epoch, self.val_dataloader, self.model.training)
 
-        self.save_checkpoint({}, self.configs.output_dir, self.configs.output_filename)
+        self.save_checkpoint({}, self.configs.logging.output_dir, self.configs.logging.output_filename)

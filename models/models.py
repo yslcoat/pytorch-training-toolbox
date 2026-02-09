@@ -44,7 +44,7 @@ def create_model(configs: TrainingConfig, device, ngpus_per_node):
 
     model = builder.build(configs)
 
-    if not configs.dist.use_accel:
+    if configs.dist.no_accel or device.type == "cpu":
         logging.info("using CPU, this will be slow")
     else:
         model = configure_multi_gpu_model(configs, model, device, ngpus_per_node)

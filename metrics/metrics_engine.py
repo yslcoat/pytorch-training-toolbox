@@ -5,6 +5,7 @@ from typing import Dict, List, Callable
 import torch.nn as nn
 import torch.distributed as dist
 
+from utils.configs import TrainingConfig
 from metrics.metrics import METRICS_REGISTRY
 
 
@@ -41,13 +42,13 @@ class AverageMeter:
 
 
 class MetricsEngine:
-    def __init__(self, metrics_configs):
+    def __init__(self, configs: TrainingConfig):
         self.metric_functions: Dict[str, nn.Module] = {
             name: METRICS_REGISTRY[name] 
-            for name in metrics_configs.metrics 
+            for name in configs.logging.active_metrics 
             if name in METRICS_REGISTRY
         }
-        self.use_accel = not metrics_configs.no_accel and torch.accelerator.is_available()
+        self.use_accel = not configs.dist.no_accel and torch.accelerator.is_available()
         self.batch_history = []
         self.epoch_history = []
         

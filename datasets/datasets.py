@@ -5,19 +5,19 @@ import torch.nn as nn
 from torch.utils.data import Dataset
 
 from datasets.dummy_dataset import DummyDataset
-
+from utils.configs import TrainingConfig
 
 class DatasetBuilder(Protocol):
-    def build(self, configs) -> Dataset:
+    def build(self, configs: TrainingConfig) -> Dataset:
         ...
 
 
 class DummyDatasetBuilder(DatasetBuilder):
-    def build(self, configs) -> Dataset:
+    def build(self, configs: TrainingConfig) -> Dataset:
         return DummyDataset(
-            n_samples=configs.n_samples,
-            inputs_tensor_shape=configs.inputs_tensor_shape,
-            num_classes=configs.num_classes,
+            n_samples=configs.dataset_config.n_samples,
+            inputs_tensor_shape=configs.dataset_config.inputs_tensor_shape,
+            num_classes=configs.dataset_config.num_classes,
         )
 
 
@@ -26,7 +26,7 @@ DATASET_REGISTRY: dict[str, DatasetBuilder] = {
 }
 
 
-def create_dataset(configs) -> Dataset:
+def create_dataset(configs: TrainingConfig) -> Dataset:
     logging.info("=> creating dataset '{}'".format(configs.dataset))
     builder = DATASET_REGISTRY.get(configs.dataset)
 
