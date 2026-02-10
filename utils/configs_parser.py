@@ -30,7 +30,7 @@ def parse_training_configs() -> TrainingConfig:
     dist_group.add_argument("--gpu", default=None, type=int)
 
     log_group = parser.add_argument_group("Logging")
-    log_group.add_argument("--metrics", nargs="+", default=["top_k_accuracy"], choices=METRICS_REGISTRY.keys())
+    log_group.add_argument("--metrics", nargs="+", default=["top_1_accuracy", "top_5_accuracy"], choices=METRICS_REGISTRY.keys())
     log_group.add_argument("--resume", default="", type=str)
 
     selection_group = parser.add_argument_group("Component Selection")

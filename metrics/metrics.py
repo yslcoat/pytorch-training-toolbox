@@ -3,23 +3,23 @@ import logging
 from typing import Protocol
 import torch.nn as nn
 
-from .top_k_accuracy import TopKAccuracy
-
+from .top_k_accuracy import Top1Accuracy, Top5Accuracy
 
 class MetricsBuilder(Protocol):
-    def build(self, configs) -> nn.Module:
+    def build(self, _) -> nn.Module:
         ...
 
+class Top1Builder(MetricsBuilder):
+    def build(self, _) -> nn.Module:
+        return Top1Accuracy()
 
-class TopKAccuracyBuilder(MetricsBuilder):
-    def build(self, configs) -> nn.Module:
-        return TopKAccuracy(
-            top_k=configs.top_k,
-        )
+class Top5Builder(MetricsBuilder):
+    def build(self, _) -> nn.Module:
+        return Top5Accuracy()
 
-
-METRICS_REGISTRY: dict[str, MetricsBuilder] = {
-    "top_k_accuracy": TopKAccuracyBuilder(),
+METRICS_REGISTRY = {
+    "top_1_accuracy": Top1Builder(),
+    "top_5_accuracy": Top5Builder(),
 }
 
 

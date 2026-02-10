@@ -73,7 +73,7 @@ class LoggingConfig:
     evaluate: bool = False
     seed: Optional[int] = None
 
-    active_metrics: List[str] = field(default_factory=lambda: ["top_k_accuracy"])
+    active_metrics: List[str] = field(default_factory=lambda: ["top_1_accuracy", "top_5_accuracy"])
 
     output_dir: Path = field(init=False)
 
