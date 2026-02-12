@@ -29,7 +29,7 @@ def initialize_training(configs: TrainingConfig):
 
     if configs.dist.multiprocessing_distributed:
         configs.dist.world_size = ngpus_per_node * configs.dist.world_size
-        mp.spawn(main, nprocs=ngpus_per_node, configs=(ngpus_per_node, configs))
+        mp.spawn(main, nprocs=ngpus_per_node, args=(ngpus_per_node, configs))
     else:
         main(configs.dist.gpu, ngpus_per_node, configs)
 
