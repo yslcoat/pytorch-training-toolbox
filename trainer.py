@@ -101,15 +101,18 @@ class TrainingManager():
             self.optimizer.step()
 
         self.metrics_engine.process_batch_metrics(outputs, targets, loss.item())
-    
+
     def process_epoch(self, epoch, dataloader, is_training):
         if is_training and hasattr(self.train_sampler, "set_epoch"):
             self.train_sampler.set_epoch(epoch)
 
-        for inputs, targets in dataloader:
+        for i, (inputs, targets) in enumerate(dataloader):
             self.process_batch(inputs, targets)
 
-        self.metrics_engine.process_epoch_metrics()
+            if i % self.configs.logging.print_freq == 0:
+                self.metrics_engine.progress.display(i + 1)
+
+        return self.metrics_engine.process_epoch_metrics()
 
     def validate(self, epoch):
         pass
@@ -120,8 +123,12 @@ class TrainingManager():
             if self.local_rank == 0:
                 logger.info(f"Epoch: {epoch}")
 
+            self.metrics_engine.set_mode("train")
+            self.metrics_engine.reset_metrics()
+            self.metrics_engine.configure_progress_meter(len(self.train_dataloader), epoch)
+            
             self.model.train()
-            self.process_epoch(epoch, self.train_dataloader, self.model.training)
+            self.process_epoch(epoch, self.train_dataloader, is_training=True)
 
             if self.scheduler:
                 self.scheduler.step()
@@ -131,4 +138,21 @@ class TrainingManager():
                 with torch.no_grad():
                     self.process_epoch(epoch, self.val_dataloader, self.model.training)
 
-        self.save_checkpoint({}, self.configs.logging.output_dir, self.configs.logging.output_filename)
+            if self.local_rank == 0:
+                state = {
+                    "epoch": epoch + 1,
+                    "state_dict": self.model.state_dict(),
+                    "optimizer": self.optimizer.state_dict(),
+                    "best_loss": self.best_loss,
+                    "batch_history": self.metrics_engine.batch_history,
+                    "epoch_history": self.metrics_engine.epoch_history,
+                }
+                if self.scheduler:
+                    state["scheduler"] = self.scheduler.state_dict()
+                    
+                self.save_checkpoint(
+                    state, 
+                    Path(self.configs.logging.output_dir), 
+                    is_best, 
+                    self.configs.logging.output_filename
+                )
