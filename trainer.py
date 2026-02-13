@@ -71,9 +71,10 @@ class TrainingManager():
                 loc = f"{self.device.type}:{self.configs.dist.gpu}"
                 checkpoint = torch.load(self.configs.logging.resume, map_location=loc, weights_only=False)
             self.configs.optim.start_epoch = checkpoint["epoch"]
-            self.best_loss = checkpoint.get("best_loss", float('inf'))
-            if self.configs.dist.gpu is not None:
-                self.best_loss = self.best_loss.to(self.configs.dist.gpu)
+            best_loss = checkpoint.get("best_loss", float("inf"))
+            if isinstance(best_loss, torch.Tensor):
+                best_loss = best_loss.item()
+            self.metrics_engine.best_loss = float(best_loss)
             self.model.load_state_dict(checkpoint["state_dict"])
             self.optimizer.load_state_dict(checkpoint["optimizer"])
             if self.scheduler and "scheduler" in checkpoint:
@@ -128,22 +129,30 @@ class TrainingManager():
             self.metrics_engine.configure_progress_meter(len(self.train_dataloader), epoch)
             
             self.model.train()
-            self.process_epoch(epoch, self.train_dataloader, is_training=True)
+            train_epoch_metrics = self.process_epoch(epoch, self.train_dataloader, is_training=True)
 
             if self.scheduler:
                 self.scheduler.step()
+
+            is_best = False
             
             if self.val_dataloader:
+                self.metrics_engine.set_mode("validate")
+                self.metrics_engine.reset_metrics()
+                self.metrics_engine.configure_progress_meter(len(self.val_dataloader), epoch)
                 self.model.eval()
                 with torch.no_grad():
-                    self.process_epoch(epoch, self.val_dataloader, self.model.training)
+                    val_epoch_metrics = self.process_epoch(epoch, self.val_dataloader, is_training=False)
+                is_best = self.metrics_engine.update_best_loss(val_epoch_metrics)
+            else:
+                is_best = self.metrics_engine.update_best_loss(train_epoch_metrics)
 
             if self.local_rank == 0:
                 state = {
                     "epoch": epoch + 1,
                     "state_dict": self.model.state_dict(),
                     "optimizer": self.optimizer.state_dict(),
-                    "best_loss": self.best_loss,
+                    "best_loss": self.metrics_engine.best_loss,
                     "batch_history": self.metrics_engine.batch_history,
                     "epoch_history": self.metrics_engine.epoch_history,
                 }

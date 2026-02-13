@@ -105,6 +105,7 @@ class MetricsEngine:
         self.use_accel = not configs.dist.no_accel and torch.accelerator.is_available()
         self.batch_history = []
         self.epoch_history = []
+        self.best_loss = float("inf")
         
         self.meters: Dict[str, AverageMeter] = {}
         for name in self.metric_functions.keys():
@@ -177,6 +178,18 @@ class MetricsEngine:
         self.reset_metrics()
             
         return epoch_results
+
+    def update_best_loss(self, epoch_results: Dict[str, float], metric_name: str = "loss") -> bool:
+        metric_val = epoch_results.get(metric_name)
+        if metric_val is None:
+            return False
+
+        metric_val = float(metric_val)
+        if metric_val < self.best_loss:
+            self.best_loss = metric_val
+            return True
+
+        return False
 
     def get_latest_stats(self):
         return self.epoch_history[-1] if self.epoch_history else {}
