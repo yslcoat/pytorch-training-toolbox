@@ -108,6 +108,8 @@ class TrainingManager():
             self.optimizer.zero_grad()        
             loss.backward()
             self.optimizer.step()
+            if self.scheduler and self.configs.optim.scheduler_step_unit == "step":
+                self.scheduler.step()
 
         self.metrics_engine.process_batch_metrics(outputs, targets, loss.item())
 
@@ -139,7 +141,7 @@ class TrainingManager():
             self.model.train()
             train_epoch_metrics = self.process_epoch(epoch, self.train_dataloader, is_training=True)
 
-            if self.scheduler:
+            if self.scheduler and self.configs.optim.scheduler_step_unit == "epoch":
                 self.scheduler.step()
 
             is_best = False

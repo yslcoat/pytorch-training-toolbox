@@ -24,6 +24,12 @@ def parse_training_configs() -> TrainingConfig:
     optim_group.add_argument("--epochs", default=90, type=int)
     optim_group.add_argument("--batch-size", default=256, type=int)
     optim_group.add_argument("--lr", default=5e-4, type=float)
+    optim_group.add_argument("--warmup-iters", default=0, type=int)
+    optim_group.add_argument(
+        "--scheduler-step-unit",
+        default="step",
+        choices=["step", "epoch"],
+    )
 
     dist_group = parser.add_argument_group("Distributed")
     dist_group.add_argument("--world-size", default=-1, type=int)
@@ -94,7 +100,11 @@ def parse_training_configs() -> TrainingConfig:
 
     return TrainingConfig(
         optim=OptimizationConfig(
-            epochs=args.epochs, batch_size=args.batch_size, lr=args.lr
+            epochs=args.epochs,
+            batch_size=args.batch_size,
+            lr=args.lr,
+            warmup_iters=args.warmup_iters,
+            scheduler_step_unit=args.scheduler_step_unit,
         ),
         dist=DistributedConfig(world_size=args.world_size, gpu=args.gpu),
         logging=LoggingConfig(resume=args.resume, active_metrics=args.metrics),

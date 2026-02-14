@@ -32,9 +32,24 @@ class OptimizationConfig:
     batch_size: int = 256
     lr: float = 5e-4
     momentum: float = 0.9
-    warmup_period: int = 10000
+    warmup_iters: int = 0
+    scheduler_step_unit: str = "step"
     weight_decay: float = 0.05
     mixup: bool = False
+
+    def __post_init__(self):
+        if self.epochs < 0:
+            raise ValueError(f"epochs must be >= 0, got {self.epochs}")
+        if self.start_epoch < 0:
+            raise ValueError(f"start_epoch must be >= 0, got {self.start_epoch}")
+        if self.batch_size <= 0:
+            raise ValueError(f"batch_size must be > 0, got {self.batch_size}")
+        if self.warmup_iters < 0:
+            raise ValueError(f"warmup_iters must be >= 0, got {self.warmup_iters}")
+        if self.scheduler_step_unit not in {"step", "epoch"}:
+            raise ValueError(
+                f"scheduler_step_unit must be one of ['step', 'epoch'], got {self.scheduler_step_unit}"
+            )
 
 
 @dataclass

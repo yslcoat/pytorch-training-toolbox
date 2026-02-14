@@ -56,19 +56,40 @@ def main(gpu, ngpus_per_node: int, configs: TrainingConfig):
         model.parameters(), configs.optim.lr, weight_decay=configs.optim.weight_decay
     ) # Same here as criterion
 
-    main_scheduler = CosineAnnealingLR(
-        optimizer, T_max=configs.optim.epochs - configs.optim.warmup_period, eta_min=1e-6
-    ) # Same here as criterion
+    if configs.optim.scheduler_step_unit == "epoch":
+        total_scheduler_iters = configs.optim.epochs
+    else:
+        total_scheduler_iters = configs.optim.epochs * len(train_loader)
 
-    warmup_scheduler = LinearLR(
-        optimizer, start_factor=0.01, total_iters=configs.optim.warmup_period
-    ) # Same here as criterion
+    warmup_iters = configs.optim.warmup_iters
+    if warmup_iters < 0:
+        raise ValueError(f"warmup_iters must be >= 0, got {warmup_iters}")
+    if total_scheduler_iters > 0 and warmup_iters >= total_scheduler_iters:
+        raise ValueError(
+            "warmup_iters must be smaller than total scheduler iterations. "
+            f"Got warmup_iters={warmup_iters}, total_iters={total_scheduler_iters}, "
+            f"scheduler_step_unit={configs.optim.scheduler_step_unit}"
+        )
 
-    scheduler = SequentialLR(
-        optimizer,
-        schedulers=[warmup_scheduler, main_scheduler],
-        milestones=[configs.optim.warmup_period],
-    ) # Here too, should have some logic to simplify the entire optimizer setup tbh.
+    scheduler = None
+    if total_scheduler_iters > 0:
+        cosine_iters = total_scheduler_iters - warmup_iters
+        if warmup_iters == 0:
+            scheduler = CosineAnnealingLR(
+                optimizer, T_max=cosine_iters, eta_min=1e-6
+            )
+        else:
+            warmup_scheduler = LinearLR(
+                optimizer, start_factor=0.01, total_iters=warmup_iters
+            )
+            main_scheduler = CosineAnnealingLR(
+                optimizer, T_max=cosine_iters, eta_min=1e-6
+            )
+            scheduler = SequentialLR(
+                optimizer,
+                schedulers=[warmup_scheduler, main_scheduler],
+                milestones=[warmup_iters],
+            )
 
     metrics_engine = MetricsEngine(configs)
     
