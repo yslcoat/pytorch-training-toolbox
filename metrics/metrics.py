@@ -21,15 +21,3 @@ METRICS_REGISTRY = {
     "top_1_accuracy": Top1Builder(),
     "top_5_accuracy": Top5Builder(),
 }
-
-
-def create_model(configs, device, ngpus_per_node):
-    logging.info("=> creating model '{}'".format(configs.arch))
-    builder = METRICS_REGISTRY.get(configs.metrics)
-
-    if not builder:
-        raise ValueError(f"Metric {configs.metrics} not supported.")
-
-    metrics = builder.build(configs)
-
-    return metrics

@@ -22,28 +22,28 @@ def configure_training_device(configs: TrainingConfig):
     return device
 
 
-def initialize_distributed_mode(gpu, ngpus_per_node, configs):
-    if configs.dist_url == "env://" and configs.rank == -1:
-            configs.rank = int(os.environ["RANK"])
-    if configs.multiprocessing_distributed:
-        configs.rank = configs.rank * ngpus_per_node + gpu
+def initialize_distributed_mode(gpu, ngpus_per_node, configs: TrainingConfig):
+    if configs.dist.dist_url == "env://" and configs.dist.rank == -1:
+            configs.dist.rank = int(os.environ["RANK"])
+    if configs.dist.multiprocessing_distributed:
+        configs.dist.rank = configs.dist.rank * ngpus_per_node + gpu
     dist.init_process_group(
-        backend=configs.dist_backend,
-        init_method=configs.dist_url,
-        world_size=configs.world_size,
-        rank=configs.rank,
+        backend=configs.dist.dist_backend,
+        init_method=configs.dist.dist_url,
+        world_size=configs.dist.world_size,
+        rank=configs.dist.rank,
     )
     dist.barrier()
 
 
-def configure_multi_gpu_model(configs, model, device, ngpus_per_node):
+def configure_multi_gpu_model(configs: TrainingConfig, model, device, ngpus_per_node):
     if configs.dist.distributed:
         if device.type == "cuda":
             if configs.dist.gpu is not None:
                 torch.cuda.set_device(configs.dist.gpu)
                 model.cuda(device)
-                configs.batch_size = int(configs.batch_size / ngpus_per_node)
-                configs.workers = int((configs.workers + ngpus_per_node - 1) / ngpus_per_node)
+                configs.optim.batch_size = int(configs.optim.batch_size / ngpus_per_node)
+                configs.dataloader.num_workers = int((configs.dataloader.num_workers + ngpus_per_node - 1) / ngpus_per_node)
                 model = torch.nn.parallel.DistributedDataParallel(
                     model, device_ids=[configs.dist.gpu]
                 )

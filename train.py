@@ -70,8 +70,8 @@ def main(gpu, ngpus_per_node: int, configs: TrainingConfig):
         milestones=[configs.optim.warmup_period],
     ) # Here too, should have some logic to simplify the entire optimizer setup tbh.
 
-    metrics_engine = MetricsEngine(configs) # Wonder if use_accel can be set in the config class. Need utility function for setting list of metric functions.
-
+    metrics_engine = MetricsEngine(configs)
+    
     training_manager = TrainingManager(
         configs=configs,
         model=model,

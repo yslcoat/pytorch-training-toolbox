@@ -3,7 +3,7 @@ from torch.utils.data import Dataset
 
 
 class DummyDataset(Dataset):
-    def __init__(self, n_samples: int, inputs_tensor_shape: tuple, num_classes: int):
+    def __init__(self, n_samples: int, inputs_tensor_shape: list[int], num_classes: int):
         self.n_samples = n_samples
         self.inputs_tensor_shape = inputs_tensor_shape
         self.num_classes = num_classes

@@ -1,7 +1,6 @@
-import argparse
 import datetime
 from pathlib import Path
-from typing import Optional, List, Tuple, Union, Dict, Any
+from typing import Optional, Dict, Any
 from dataclasses import dataclass, field
 
 
@@ -17,13 +16,13 @@ class FeedForwardNetworkConfig:
 @dataclass
 class DummyDatasetConfig:
     n_samples: int = 10000
-    inputs_tensor_shape: List[int] = field(default_factory=lambda: [784])
+    inputs_tensor_shape: list[int] = field(default_factory=lambda: [784])
     num_classes: int = 10
 
 
 @dataclass
 class TopKAccuracyConfig:
-    top_k: List[int] = field(default_factory=lambda: [1, 5])
+    top_k: list[int] = field(default_factory=lambda: [1, 5])
 
 
 @dataclass
@@ -73,7 +72,7 @@ class LoggingConfig:
     evaluate: bool = False
     seed: Optional[int] = None
 
-    active_metrics: List[str] = field(default_factory=lambda: ["top_1_accuracy", "top_5_accuracy"])
+    active_metrics: list[str] = field(default_factory=lambda: ["top_1_accuracy", "top_5_accuracy"])
 
     output_dir: Path = field(init=False)
 
