@@ -31,17 +31,25 @@ class TrainingManager():
             val_dataloader: torch.utils.data.DataLoader | None,
             metrics_engine: MetricsEngine,
             local_rank: int,
+            device: torch.device,
             ):
         
             self.configs = configs
             self.model = model
 
-            if isinstance(local_rank, torch.device):
-                self.device = local_rank
-                self.local_rank = 0
+            self.local_rank = local_rank
+            self.device = device
+
+            if (
+                self.configs.dist.distributed
+                and torch.distributed.is_available()
+                and torch.distributed.is_initialized()
+            ):
+                self.global_rank = torch.distributed.get_rank()
             else:
-                self.local_rank = local_rank
-                self.device = torch.device(f"cuda:{local_rank}")
+                self.global_rank = 0
+
+            self.is_main_process = self.global_rank == 0
 
             self.optimizer = optimizer
             self.scheduler = scheduler
@@ -121,7 +129,7 @@ class TrainingManager():
     
     def train(self):
         for epoch in range(self.configs.optim.epochs):
-            if self.local_rank == 0:
+            if self.is_main_process:
                 logger.info(f"Epoch: {epoch}")
 
             self.metrics_engine.set_mode("train")
@@ -147,7 +155,7 @@ class TrainingManager():
             else:
                 is_best = self.metrics_engine.update_best_loss(train_epoch_metrics)
 
-            if self.local_rank == 0:
+            if self.is_main_process:
                 state = {
                     "epoch": epoch + 1,
                     "state_dict": self.model.state_dict(),

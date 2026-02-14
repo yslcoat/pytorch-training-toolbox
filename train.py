@@ -80,7 +80,8 @@ def main(gpu, ngpus_per_node: int, configs: TrainingConfig):
         train_dataloader=train_loader,
         val_dataloader=val_loader,
         metrics_engine=metrics_engine,
-        local_rank=device,
+        local_rank=configs.dist.gpu if configs.dist.gpu is not None else 0,
+        device=device,
         scheduler=scheduler
     )
 
