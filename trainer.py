@@ -130,7 +130,19 @@ class TrainingManager():
 
     
     def train(self):
-        for epoch in range(self.configs.optim.epochs):
+        start_epoch = self.configs.optim.start_epoch
+        if start_epoch < 0:
+            raise ValueError(f"start_epoch must be >= 0, got {start_epoch}")
+        if start_epoch >= self.configs.optim.epochs:
+            if self.is_main_process:
+                logger.info(
+                    "start_epoch (%s) >= configured epochs (%s); nothing to train.",
+                    start_epoch,
+                    self.configs.optim.epochs,
+                )
+            return
+
+        for epoch in range(start_epoch, self.configs.optim.epochs):
             if self.is_main_process:
                 logger.info(f"Epoch: {epoch}")
 

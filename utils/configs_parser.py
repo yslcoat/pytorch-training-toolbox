@@ -33,6 +33,10 @@ def parse_training_configs() -> TrainingConfig:
 
     dist_group = parser.add_argument_group("Distributed")
     dist_group.add_argument("--world-size", default=-1, type=int)
+    dist_group.add_argument("--rank", default=-1, type=int)
+    dist_group.add_argument("--dist-url", default="tcp://224.66.41.62:23456", type=str)
+    dist_group.add_argument("--dist-backend", default="nccl", type=str)
+    dist_group.add_argument("--multiprocessing-distributed", action="store_true")
     dist_group.add_argument("--gpu", default=None, type=int)
 
     log_group = parser.add_argument_group("Logging")
@@ -106,7 +110,14 @@ def parse_training_configs() -> TrainingConfig:
             warmup_iters=args.warmup_iters,
             scheduler_step_unit=args.scheduler_step_unit,
         ),
-        dist=DistributedConfig(world_size=args.world_size, gpu=args.gpu),
+        dist=DistributedConfig(
+            world_size=args.world_size,
+            rank=args.rank,
+            dist_url=args.dist_url,
+            dist_backend=args.dist_backend,
+            multiprocessing_distributed=args.multiprocessing_distributed,
+            gpu=args.gpu,
+        ),
         logging=LoggingConfig(resume=args.resume, active_metrics=args.metrics),
         arch=args.arch,
         dataset=args.dataset,

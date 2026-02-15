@@ -23,10 +23,30 @@ def configure_training_device(configs: TrainingConfig):
 
 
 def initialize_distributed_mode(gpu, ngpus_per_node, configs: TrainingConfig):
-    if configs.dist.dist_url == "env://" and configs.dist.rank == -1:
+    if configs.dist.rank == -1:
+        if configs.dist.dist_url == "env://":
+            if "RANK" not in os.environ:
+                raise RuntimeError(
+                    "dist_url is set to env:// but RANK is not present in the environment."
+                )
             configs.dist.rank = int(os.environ["RANK"])
+        elif configs.dist.multiprocessing_distributed:
+            # Single-node mp spawn defaults to node rank 0 when unspecified.
+            configs.dist.rank = 0
+        else:
+            raise ValueError(
+                "Distributed training with dist_url != env:// requires a non-negative rank. "
+                "Pass --rank, or use --dist-url env:// with a launcher that sets RANK."
+            )
+
     if configs.dist.multiprocessing_distributed:
+        if gpu is None:
+            raise ValueError("multiprocessing_distributed requires a valid per-process gpu index.")
         configs.dist.rank = configs.dist.rank * ngpus_per_node + gpu
+
+    if configs.dist.rank < 0:
+        raise ValueError(f"rank must be >= 0 before init_process_group, got {configs.dist.rank}")
+
     dist.init_process_group(
         backend=configs.dist.dist_backend,
         init_method=configs.dist.dist_url,
@@ -51,7 +71,11 @@ def configure_multi_gpu_model(configs: TrainingConfig, model, device, ngpus_per_
                 model.cuda()
                 model = torch.nn.parallel.DistributedDataParallel(model)
     elif device.type == "cuda":
-        model = torch.nn.DataParallel(model).cuda()
+        if configs.dist.gpu is not None:
+            torch.cuda.set_device(configs.dist.gpu)
+            model = model.cuda(configs.dist.gpu)
+        else:
+            model = torch.nn.DataParallel(model).cuda()
     else:
         model.to(device)
 
@@ -81,6 +105,9 @@ def configure_ddp(configs: TrainingConfig):
 
     if configs.dist.dist_url == "env://" and configs.dist.world_size == -1:
         configs.dist.world_size = int(os.environ["WORLD_SIZE"])
+    elif configs.dist.multiprocessing_distributed and configs.dist.world_size == -1:
+        # For single-node mp distributed training, world_size defaults to one node.
+        configs.dist.world_size = 1
 
     configs.dist.distributed = configs.dist.world_size > 1 or configs.dist.multiprocessing_distributed
 
