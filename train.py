@@ -5,6 +5,7 @@ import torch.optim
 from torch.optim.lr_scheduler import LinearLR, CosineAnnealingLR, SequentialLR
 
 from trainer import TrainingManager
+from criterions.criterions_factory import create_criterion
 from models.models import create_model
 from datasets.datasets import create_dataset
 from datasets.data_utils import create_dataloader
@@ -51,11 +52,17 @@ def main(gpu, ngpus_per_node: int, configs: TrainingConfig):
     train_loader = create_dataloader(train_dataset, configs)
     val_loader = create_dataloader(val_dataset, configs, partition='val')
 
-    criterion = nn.CrossEntropyLoss().to(device) # Maybe create util function with a registry of different loss functions instead of hardcoding, we'll see.
+    criterion = create_criterion(configs).to(device)
 
-    optimizer = torch.optim.AdamW(
-        model.parameters(), configs.optim.lr, weight_decay=configs.optim.weight_decay
-    ) # Same here as criterion
+    # criterion = nn.CrossEntropyLoss().to(device) # Maybe create util function with a registry of different loss functions instead of hardcoding, we'll see.
+
+    optimizer = create_optimizer(configs, model)
+    # optimizer = torch.optim.AdamW(
+    #     model.parameters(), configs.optim.lr, weight_decay=configs.optim.weight_decay
+    # ) # Same here as criterion
+
+    if configs.optim.lr_scheduling:
+        scheduler = create_scheduler(configs, optimizer, train_loader)
 
     if configs.optim.scheduler_step_unit == "epoch":
         total_scheduler_iters = configs.optim.epochs

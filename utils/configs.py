@@ -26,6 +26,28 @@ class TopKAccuracyConfig:
 
 
 @dataclass
+class CriterionConfigs:
+    pass
+
+
+@dataclass
+class CrossEntropyLossConfigs(CriterionConfigs):
+    label_smoothing: float = 0.0
+    ignore_index: int = -100
+    reduction: str = "mean"
+
+    def __post_init__(self):
+        if not 0.0 <= self.label_smoothing <= 1.0:
+            raise ValueError(
+                f"label_smoothing must be in [0.0, 1.0], got {self.label_smoothing}"
+            )
+        if self.reduction not in {"none", "mean", "sum"}:
+            raise ValueError(
+                f"reduction must be one of ['none', 'mean', 'sum'], got {self.reduction}"
+            )
+
+
+@dataclass
 class OptimizationConfig:
     epochs: int = 90
     start_epoch: int = 0
@@ -101,6 +123,8 @@ class TrainingConfig:
     dist: DistributedConfig
     logging: LoggingConfig
 
+    criterion: str
+
     arch: str 
     dataset: str
     dataloader: DataLoaderConfig
@@ -108,4 +132,5 @@ class TrainingConfig:
     model_config: FeedForwardNetworkConfig
     dataset_config: DummyDatasetConfig
 
+    criterion_config: CriterionConfigs | None
     metrics_config: Dict[str, Any]

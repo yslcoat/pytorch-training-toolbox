@@ -3,6 +3,7 @@ import argparse
 from models.models import MODEL_REGISTRY
 from datasets.datasets import DATASET_REGISTRY
 from metrics.metrics import METRICS_REGISTRY
+from criterions.criterions_factory import CRITERIONS_REGISTRY
 
 
 from utils.configs import (
@@ -10,6 +11,8 @@ from utils.configs import (
     FeedForwardNetworkConfig, 
     DummyDatasetConfig, 
     TopKAccuracyConfig,
+    CriterionConfigs,
+    CrossEntropyLossConfigs,
     OptimizationConfig,
     DistributedConfig,
     DataLoaderConfig,
@@ -50,6 +53,9 @@ def parse_training_configs() -> TrainingConfig:
     selection_group.add_argument(
         "--dataset", default="DummyDataset", choices=DATASET_REGISTRY.keys()
     )
+    selection_group.add_argument(
+        "--criterion", default="cross_entropy_loss", choices=CRITERIONS_REGISTRY.keys()
+    )
 
     dataloader_group = parser.add_argument_group("DataLoader")
     dataloader_group.add_argument(
@@ -76,6 +82,15 @@ def parse_training_configs() -> TrainingConfig:
 
     topk_group = parser.add_argument_group("Metric: TopK")
     topk_group.add_argument("--topk-values", default=[1, 5], nargs="+", type=int)
+
+    ce_group = parser.add_argument_group("Criterion: CrossEntropyLoss")
+    ce_group.add_argument("--ce-label-smoothing", default=0.0, type=float)
+    ce_group.add_argument("--ce-ignore-index", default=-100, type=int)
+    ce_group.add_argument(
+        "--ce-reduction",
+        default="mean",
+        choices=["none", "mean", "sum"],
+    )
 
     args = parser.parse_args()
 
@@ -114,6 +129,16 @@ def parse_training_configs() -> TrainingConfig:
             top_k=list(args.topk_values)
         )
 
+    criterion_config: CriterionConfigs | None
+    if args.criterion == "cross_entropy_loss":
+        criterion_config = CrossEntropyLossConfigs(
+            label_smoothing=args.ce_label_smoothing,
+            ignore_index=args.ce_ignore_index,
+            reduction=args.ce_reduction,
+        )
+    else:
+        raise ValueError(f"No config defined for criterion: {args.criterion}")
+
     return TrainingConfig(
         optim=OptimizationConfig(
             epochs=args.epochs,
@@ -131,10 +156,12 @@ def parse_training_configs() -> TrainingConfig:
             gpu=args.gpu,
         ),
         logging=LoggingConfig(resume=args.resume, active_metrics=args.metrics),
+        criterion=args.criterion,
         arch=args.arch,
         dataset=args.dataset,
         model_config=model_config,
         dataloader=dataloader_config,
         dataset_config=dataset_config,
+        criterion_config=criterion_config,
         metrics_config=metrics_config_map,
     )
