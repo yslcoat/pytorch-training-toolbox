@@ -5,7 +5,7 @@ import torch.nn as nn
 
 from models.FeedForwardNeuralNetwork import FeedForwardNeuralNetwork
 from utils.torch_utils import (
-    configure_multi_gpu_model,
+    configure_multi_device_model,
 )
 from utils.configs import TrainingConfig, FeedForwardNetworkConfig
 
@@ -46,7 +46,7 @@ def create_model(configs: TrainingConfig, device, ngpus_per_node):
 
     if configs.dist.no_accel or device.type == "cpu":
         logging.info("using CPU, this will be slow")
-    else:
-        model = configure_multi_gpu_model(configs, model, device, ngpus_per_node)
+
+    model = configure_multi_device_model(configs, model, device, ngpus_per_node)
 
     return model

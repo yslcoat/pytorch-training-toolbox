@@ -47,6 +47,24 @@ def initialize_distributed_mode(gpu, ngpus_per_node, configs: TrainingConfig):
     if configs.dist.rank < 0:
         raise ValueError(f"rank must be >= 0 before init_process_group, got {configs.dist.rank}")
 
+    use_accel = not configs.dist.no_accel and torch.accelerator.is_available()
+    if use_accel and configs.dist.gpu is None:
+        local_rank = os.environ.get("LOCAL_RANK")
+        if local_rank is not None:
+            try:
+                configs.dist.gpu = int(local_rank)
+            except ValueError as exc:
+                raise ValueError(f"LOCAL_RANK must be an integer, got {local_rank!r}") from exc
+        else:
+            configs.dist.gpu = configs.dist.rank % ngpus_per_node
+            logging.warning(
+                "LOCAL_RANK is not set; inferring gpu index as rank %% ngpus_per_node (%s).",
+                configs.dist.gpu,
+            )
+
+    if use_accel and configs.dist.gpu is not None:
+        torch.accelerator.set_device_index(configs.dist.gpu)
+
     dist.init_process_group(
         backend=configs.dist.dist_backend,
         init_method=configs.dist.dist_url,
@@ -56,20 +74,24 @@ def initialize_distributed_mode(gpu, ngpus_per_node, configs: TrainingConfig):
     dist.barrier()
 
 
-def configure_multi_gpu_model(configs: TrainingConfig, model, device, ngpus_per_node):
+def configure_multi_device_model(configs: TrainingConfig, model, device, ngpus_per_node):
     if configs.dist.distributed:
         if device.type == "cuda":
-            if configs.dist.gpu is not None:
-                torch.cuda.set_device(configs.dist.gpu)
-                model.cuda(device)
-                configs.optim.batch_size = int(configs.optim.batch_size / ngpus_per_node)
-                configs.dataloader.num_workers = int((configs.dataloader.num_workers + ngpus_per_node - 1) / ngpus_per_node)
-                model = torch.nn.parallel.DistributedDataParallel(
-                    model, device_ids=[configs.dist.gpu]
+            if configs.dist.gpu is None:
+                raise ValueError(
+                    "Distributed CUDA training requires a per-process GPU index. "
+                    "Use torchrun (LOCAL_RANK) or provide --gpu."
                 )
-            else:
-                model.cuda()
-                model = torch.nn.parallel.DistributedDataParallel(model)
+            torch.cuda.set_device(configs.dist.gpu)
+            model = model.cuda(configs.dist.gpu)
+            configs.optim.batch_size = int(configs.optim.batch_size / ngpus_per_node)
+            configs.dataloader.num_workers = int((configs.dataloader.num_workers + ngpus_per_node - 1) / ngpus_per_node)
+            model = torch.nn.parallel.DistributedDataParallel(
+                model, device_ids=[configs.dist.gpu]
+            )
+        else:
+            model = model.to(device)
+            model = torch.nn.parallel.DistributedDataParallel(model)
     elif device.type == "cuda":
         if configs.dist.gpu is not None:
             torch.cuda.set_device(configs.dist.gpu)

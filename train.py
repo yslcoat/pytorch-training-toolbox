@@ -35,12 +35,13 @@ def initialize_training(configs: TrainingConfig):
 
 
 def main(gpu, ngpus_per_node: int, configs: TrainingConfig):
-    configs.dist.gpu = gpu
-
-    device = configure_training_device(configs)
+    if gpu is not None:
+        configs.dist.gpu = gpu
 
     if configs.dist.distributed:
         initialize_distributed_mode(gpu, ngpus_per_node, configs)
+
+    device = configure_training_device(configs)
 
     model = create_model(configs, device, ngpus_per_node)
 
