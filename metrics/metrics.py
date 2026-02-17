@@ -1,20 +1,46 @@
-import logging
-
 from typing import Protocol
 import torch.nn as nn
 
 from .top_k_accuracy import Top1Accuracy, Top5Accuracy
+from utils.configs import TopKAccuracyConfig
 
 class MetricsBuilder(Protocol):
-    def build(self, _) -> nn.Module:
+    def build(self, metric_config: TopKAccuracyConfig | None) -> nn.Module:
         ...
 
+def _validate_top_k_metric_config(
+    *,
+    metric_name: str,
+    expected_k: int,
+    metric_config: TopKAccuracyConfig | None,
+) -> None:
+    if metric_config is None:
+        return
+    if not isinstance(metric_config, TopKAccuracyConfig):
+        raise TypeError(
+            f"{metric_name} expects TopKAccuracyConfig or None, got {type(metric_config)!r}"
+        )
+    if expected_k not in metric_config.top_k:
+        raise ValueError(
+            f"{metric_name} requires k={expected_k}, got top_k={metric_config.top_k}"
+        )
+
 class Top1Builder(MetricsBuilder):
-    def build(self, _) -> nn.Module:
+    def build(self, metric_config: TopKAccuracyConfig | None) -> nn.Module:
+        _validate_top_k_metric_config(
+            metric_name="top_1_accuracy",
+            expected_k=1,
+            metric_config=metric_config,
+        )
         return Top1Accuracy()
 
 class Top5Builder(MetricsBuilder):
-    def build(self, _) -> nn.Module:
+    def build(self, metric_config: TopKAccuracyConfig | None) -> nn.Module:
+        _validate_top_k_metric_config(
+            metric_name="top_5_accuracy",
+            expected_k=5,
+            metric_config=metric_config,
+        )
         return Top5Accuracy()
 
 METRICS_REGISTRY = {

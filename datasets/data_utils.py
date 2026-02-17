@@ -9,7 +9,7 @@ def create_dataloader(dataset, configs: TrainingConfig, collate_fn=None, partiti
         if partition == 'train':
             sampler = torch.utils.data.DistributedSampler(dataset)
         else:
-            sampler = torch.utils.data.DistributedSampler(dataset, shuffle=False, drop_last=True)
+            sampler = torch.utils.data.DistributedSampler(dataset, shuffle=False)
     else:
         sampler = None
 

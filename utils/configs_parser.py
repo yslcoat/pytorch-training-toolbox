@@ -52,9 +52,17 @@ def parse_training_configs() -> TrainingConfig:
     )
 
     dataloader_group = parser.add_argument_group("DataLoader")
-    dataloader_group.add_argument("--dataloader-shuffle", default=True, type=bool)
+    dataloader_group.add_argument(
+        "--dataloader-shuffle",
+        default=True,
+        action=argparse.BooleanOptionalAction,
+    )
     dataloader_group.add_argument("--dataloader-num-workers", default=4, type=int)
-    dataloader_group.add_argument("--dataloader-pin-memory", default=True, type=bool)
+    dataloader_group.add_argument(
+        "--dataloader-pin-memory",
+        default=True,
+        action=argparse.BooleanOptionalAction,
+    )
 
     ff_group = parser.add_argument_group("Model: FeedForward")
     ff_group.add_argument("--ff-input-size", default=784, type=int)
@@ -97,9 +105,13 @@ def parse_training_configs() -> TrainingConfig:
         raise ValueError(f"No config defined for dataset: {args.dataset}")
 
     metrics_config_map = {}
-    if "top_k_accuracy" in args.metrics:
-        metrics_config_map["top_k_accuracy"] = TopKAccuracyConfig(
-            top_k=args.topk_values
+    if "top_1_accuracy" in args.metrics:
+        metrics_config_map["top_1_accuracy"] = TopKAccuracyConfig(
+            top_k=list(args.topk_values)
+        )
+    if "top_5_accuracy" in args.metrics:
+        metrics_config_map["top_5_accuracy"] = TopKAccuracyConfig(
+            top_k=list(args.topk_values)
         )
 
     return TrainingConfig(
