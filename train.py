@@ -1,12 +1,13 @@
+import logging
+
 import torch
 import torch.multiprocessing as mp
-import torch.nn as nn
-import torch.optim
-from torch.optim.lr_scheduler import LinearLR, CosineAnnealingLR, SequentialLR
 
 from trainer import TrainingManager
 from criterions.criterions_factory import create_criterion
 from models.models import create_model
+from optimization.optimizers import create_optimizer
+from optimization.schedulers import create_scheduler
 from datasets.datasets import create_dataset
 from datasets.data_utils import create_dataloader
 from utils.configs_parser import (
@@ -19,6 +20,7 @@ from utils.torch_utils import (
     enable_manual_seed,
     configure_ddp
 )
+from utils.utils import configure_process_logging
 from metrics.metrics_engine import MetricsEngine
 
 
@@ -42,6 +44,8 @@ def main(gpu, ngpus_per_node: int, configs: TrainingConfig):
     if configs.dist.distributed:
         initialize_distributed_mode(gpu, ngpus_per_node, configs)
 
+    configure_process_logging(configs)
+
     device = configure_training_device(configs)
 
     model = create_model(configs, device, ngpus_per_node)
@@ -54,50 +58,8 @@ def main(gpu, ngpus_per_node: int, configs: TrainingConfig):
 
     criterion = create_criterion(configs).to(device)
 
-    # criterion = nn.CrossEntropyLoss().to(device) # Maybe create util function with a registry of different loss functions instead of hardcoding, we'll see.
-
     optimizer = create_optimizer(configs, model)
-    # optimizer = torch.optim.AdamW(
-    #     model.parameters(), configs.optim.lr, weight_decay=configs.optim.weight_decay
-    # ) # Same here as criterion
-
-    if configs.optim.lr_scheduling:
-        scheduler = create_scheduler(configs, optimizer, train_loader)
-
-    if configs.optim.scheduler_step_unit == "epoch":
-        total_scheduler_iters = configs.optim.epochs
-    else:
-        total_scheduler_iters = configs.optim.epochs * len(train_loader)
-
-    warmup_iters = configs.optim.warmup_iters
-    if warmup_iters < 0:
-        raise ValueError(f"warmup_iters must be >= 0, got {warmup_iters}")
-    if total_scheduler_iters > 0 and warmup_iters >= total_scheduler_iters:
-        raise ValueError(
-            "warmup_iters must be smaller than total scheduler iterations. "
-            f"Got warmup_iters={warmup_iters}, total_iters={total_scheduler_iters}, "
-            f"scheduler_step_unit={configs.optim.scheduler_step_unit}"
-        )
-
-    scheduler = None
-    if total_scheduler_iters > 0:
-        cosine_iters = total_scheduler_iters - warmup_iters
-        if warmup_iters == 0:
-            scheduler = CosineAnnealingLR(
-                optimizer, T_max=cosine_iters, eta_min=1e-6
-            )
-        else:
-            warmup_scheduler = LinearLR(
-                optimizer, start_factor=0.01, total_iters=warmup_iters
-            )
-            main_scheduler = CosineAnnealingLR(
-                optimizer, T_max=cosine_iters, eta_min=1e-6
-            )
-            scheduler = SequentialLR(
-                optimizer,
-                schedulers=[warmup_scheduler, main_scheduler],
-                milestones=[warmup_iters],
-            )
+    scheduler = create_scheduler(configs, optimizer, train_loader)
 
     metrics_engine = MetricsEngine(configs)
     

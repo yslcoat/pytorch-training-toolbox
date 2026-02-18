@@ -1,21 +1,16 @@
-import argparse
 from pathlib import Path
-from typing import Optional, cast
 import logging
 import shutil
 import os
 
 import torch
 import torch.nn as nn
-from torch.nn.parallel import DistributedDataParallel as DDP
-from torch.utils.data.distributed import DistributedSampler
 
 from metrics.metrics_engine import MetricsEngine
 from utils.configs import TrainingConfig
 
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(filename='training_log.log', encoding='utf-8', level=logging.DEBUG)
 
 
 class TrainingManager():
@@ -72,7 +67,8 @@ class TrainingManager():
 
     def load_checkpoint(self) -> None:
         if os.path.isfile(self.configs.logging.resume):
-            logging.info("=> loading checkpoint '{}'".format(self.configs.logging.resume))
+            if self.is_main_process:
+                logger.info("=> loading checkpoint '%s'", self.configs.logging.resume)
             if self.configs.dist.gpu is None:
                 checkpoint = torch.load(self.configs.logging.resume, weights_only=False)
             else:
@@ -89,13 +85,15 @@ class TrainingManager():
                 self.scheduler.load_state_dict(checkpoint["scheduler"])
             self.metrics_engine.batch_history = checkpoint["batch_history"]
             self.metrics_engine.epoch_history = checkpoint["epoch_history"]
-            logging.info(
-                "=> loaded checkpoint '{}' (epoch {})".format(
-                    self.configs.logging.resume, checkpoint["epoch"]
+            if self.is_main_process:
+                logger.info(
+                    "=> loaded checkpoint '%s' (epoch %s)",
+                    self.configs.logging.resume,
+                    checkpoint["epoch"],
                 )
-            )
         else:
-            logging.info("=> no checkpoint found at '{}'".format(self.configs.logging.resume))
+            if self.is_main_process:
+                logger.info("=> no checkpoint found at '%s'", self.configs.logging.resume)
 
     def process_batch(self, inputs: torch.Tensor, targets: torch.Tensor):
         inputs = inputs.to(self.device)
@@ -120,7 +118,7 @@ class TrainingManager():
         for i, (inputs, targets) in enumerate(dataloader):
             self.process_batch(inputs, targets)
 
-            if i % self.configs.logging.print_freq == 0:
+            if self.is_main_process and i % self.configs.logging.print_freq == 0:
                 self.metrics_engine.progress.display(i + 1)
 
         return self.metrics_engine.process_epoch_metrics()

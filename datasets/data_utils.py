@@ -16,7 +16,7 @@ def create_dataloader(dataset, configs: TrainingConfig, collate_fn=None, partiti
     return DataLoader(
         dataset,
         batch_size=configs.optim.batch_size,
-        shuffle=False if sampler is not None else configs.dataloader.shuffle,
+        shuffle=False if sampler is not None else configs.dataloader.shuffle or partition != 'train',
         num_workers=configs.dataloader.num_workers,
         pin_memory=configs.dataloader.pin_memory,
         collate_fn=collate_fn if collate_fn is not None else None,

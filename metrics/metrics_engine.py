@@ -1,5 +1,4 @@
 import torch
-import logging
 from enum import Enum
 from typing import Dict, List, Callable
 
@@ -106,6 +105,14 @@ class MetricsEngine:
         self.batch_history = []
         self.epoch_history = []
         self.best_loss = float("inf")
+        if (
+            configs.dist.distributed
+            and dist.is_available()
+            and dist.is_initialized()
+        ):
+            self.is_main_process = dist.get_rank() == 0
+        else:
+            self.is_main_process = True
         
         self.meters: Dict[str, AverageMeter] = {}
         for name in self.metric_functions.keys():
@@ -172,7 +179,7 @@ class MetricsEngine:
         epoch_results = {name: meter.avg for name, meter in self.meters.items()}
         self.epoch_history.append(epoch_results)
         
-        if hasattr(self, 'progress'):
+        if self.is_main_process and hasattr(self, 'progress'):
             self.progress.display_summary()
 
         self.reset_metrics()

@@ -1,52 +1,60 @@
-import logging
-
 from typing import Protocol
+
+import torch
 import torch.nn as nn
 
-from models.FeedForwardNeuralNetwork import FeedForwardNeuralNetwork
-from utils.torch_utils import (
-    configure_multi_gpu_model,
+from utils.configs import (
+    AdamWConfigs,
+    OptimizerConfigs,
+    TrainingConfig,
 )
-from utils.configs import TrainingConfig, FeedForwardNetworkConfig
 
 
 class OptimizerBuilder(Protocol):
-    def build(self, configs: TrainingConfig) -> nn.Module: ...
+    def build(
+        self,
+        model: nn.Module,
+        optimizer_config: OptimizerConfigs | None,
+    ) -> torch.optim.Optimizer:
+        ...
 
 
-class AdamW(OptimizerBuilder):
-    def build(self, configs: TrainingConfig) -> nn.Module:
-        model_config = configs.model_config
+class AdamWBuilder(OptimizerBuilder):
+    def build(
+        self,
+        model: nn.Module,
+        optimizer_config: OptimizerConfigs | None,
+    ) -> torch.optim.Optimizer:
+        if optimizer_config is None:
+            adamw_config = AdamWConfigs()
+        elif not isinstance(optimizer_config, AdamWConfigs):
+            raise TypeError(
+                "AdamWBuilder expects AdamWConfigs or None, "
+                f"got {type(optimizer_config)!r}"
+            )
+        else:
+            adamw_config = optimizer_config
 
-        if not isinstance(model_config, FeedForwardNetworkConfig):
-            raise ValueError("Incorrect config type for FeedForwardNetwork")
-
-        return FeedForwardNeuralNetwork(
-            input_size=model_config.input_size,
-            n_hidden_layers=model_config.n_layers,
-            hidden_dim=model_config.hidden_dim,
-            output_dim=model_config.output_dim,
-            dropout=model_config.dropout,
+        return torch.optim.AdamW(
+            model.parameters(),
+            lr=adamw_config.lr,
+            betas=adamw_config.betas,
+            eps=adamw_config.eps,
+            weight_decay=adamw_config.weight_decay,
+            amsgrad=adamw_config.amsgrad,
         )
 
 
-MODEL_REGISTRY: dict[str, OptimizerBuilder] = {
-    "AdamW": AdamW(),
+OPTIMIZER_REGISTRY = {
+    "adamw": AdamWBuilder(),
 }
 
 
-def create_model(configs: TrainingConfig, device, ngpus_per_node):
-    logging.info("=> creating model '{}'".format(configs.arch))
-    builder = MODEL_REGISTRY.get(configs.arch)
-
-    if not builder:
-        raise ValueError(f"Model {configs.arch} not supported.")
-
-    model = builder.build(configs)
-
-    if configs.dist.no_accel or device.type == "cpu":
-        logging.info("using CPU, this will be slow")
-    else:
-        model = configure_multi_gpu_model(configs, model, device, ngpus_per_node)
-
-    return model
+def create_optimizer(
+    configs: TrainingConfig,
+    model: nn.Module,
+) -> torch.optim.Optimizer:
+    builder = OPTIMIZER_REGISTRY.get(configs.optimizer)
+    if builder is None:
+        raise ValueError(f"Unknown optimizer: {configs.optimizer}")
+    return builder.build(model, configs.optimizer_config)

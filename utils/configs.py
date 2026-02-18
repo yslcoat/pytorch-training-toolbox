@@ -48,15 +48,111 @@ class CrossEntropyLossConfigs(CriterionConfigs):
 
 
 @dataclass
+class OptimizerConfigs:
+    pass
+
+
+@dataclass
+class AdamWConfigs(OptimizerConfigs):
+    lr: float = 5e-4
+    betas: tuple[float, float] = (0.9, 0.999)
+    eps: float = 1e-8
+    weight_decay: float = 0.05
+    amsgrad: bool = False
+
+    def __post_init__(self):
+        if self.lr <= 0.0:
+            raise ValueError(f"lr must be > 0.0, got {self.lr}")
+        if self.eps <= 0.0:
+            raise ValueError(f"eps must be > 0.0, got {self.eps}")
+        if self.weight_decay < 0.0:
+            raise ValueError(
+                f"weight_decay must be >= 0.0, got {self.weight_decay}"
+            )
+
+        beta1, beta2 = self.betas
+        if not 0.0 <= beta1 < 1.0:
+            raise ValueError(f"beta1 must be in [0.0, 1.0), got {beta1}")
+        if not 0.0 <= beta2 < 1.0:
+            raise ValueError(f"beta2 must be in [0.0, 1.0), got {beta2}")
+
+
+@dataclass
+class SchedulerConfigs:
+    pass
+
+
+@dataclass
+class LinearLRConfigs(SchedulerConfigs):
+    start_factor: float = 0.01
+    end_factor: float = 1.0
+    total_iters: int | None = None
+
+    def __post_init__(self):
+        if self.start_factor <= 0.0:
+            raise ValueError(
+                f"start_factor must be > 0.0, got {self.start_factor}"
+            )
+        if self.end_factor <= 0.0:
+            raise ValueError(f"end_factor must be > 0.0, got {self.end_factor}")
+        if self.total_iters is not None and self.total_iters <= 0:
+            raise ValueError(
+                f"total_iters must be > 0 when provided, got {self.total_iters}"
+            )
+
+
+@dataclass
+class CosineAnnealingLRConfigs(SchedulerConfigs):
+    eta_min: float = 1e-6
+    t_max: int | None = None
+
+    def __post_init__(self):
+        if self.eta_min < 0.0:
+            raise ValueError(f"eta_min must be >= 0.0, got {self.eta_min}")
+        if self.t_max is not None and self.t_max <= 0:
+            raise ValueError(f"t_max must be > 0 when provided, got {self.t_max}")
+
+
+@dataclass
+class LinearThenCosineAnnealingLRConfigs(SchedulerConfigs):
+    linear_start_factor: float = 0.01
+    linear_end_factor: float = 1.0
+    warmup_iters: int | None = None
+    cosine_eta_min: float = 1e-6
+    cosine_t_max: int | None = None
+
+    def __post_init__(self):
+        if self.linear_start_factor <= 0.0:
+            raise ValueError(
+                "linear_start_factor must be > 0.0, "
+                f"got {self.linear_start_factor}"
+            )
+        if self.linear_end_factor <= 0.0:
+            raise ValueError(
+                f"linear_end_factor must be > 0.0, got {self.linear_end_factor}"
+            )
+        if self.warmup_iters is not None and self.warmup_iters <= 0:
+            raise ValueError(
+                f"warmup_iters must be > 0 when provided, got {self.warmup_iters}"
+            )
+        if self.cosine_eta_min < 0.0:
+            raise ValueError(
+                f"cosine_eta_min must be >= 0.0, got {self.cosine_eta_min}"
+            )
+        if self.cosine_t_max is not None and self.cosine_t_max <= 0:
+            raise ValueError(
+                f"cosine_t_max must be > 0 when provided, got {self.cosine_t_max}"
+            )
+
+
+@dataclass
 class OptimizationConfig:
     epochs: int = 90
     start_epoch: int = 0
     batch_size: int = 256
-    lr: float = 5e-4
     momentum: float = 0.9
     warmup_iters: int = 0
     scheduler_step_unit: str = "step"
-    weight_decay: float = 0.05
     mixup: bool = False
 
     def __post_init__(self):
@@ -124,6 +220,8 @@ class TrainingConfig:
     logging: LoggingConfig
 
     criterion: str
+    optimizer: str
+    scheduler: str
 
     arch: str 
     dataset: str
@@ -133,4 +231,6 @@ class TrainingConfig:
     dataset_config: DummyDatasetConfig
 
     criterion_config: CriterionConfigs | None
+    optimizer_config: OptimizerConfigs | None
+    scheduler_config: SchedulerConfigs | None
     metrics_config: Dict[str, Any]

@@ -4,6 +4,8 @@ from models.models import MODEL_REGISTRY
 from datasets.datasets import DATASET_REGISTRY
 from metrics.metrics import METRICS_REGISTRY
 from criterions.criterions_factory import CRITERIONS_REGISTRY
+from optimization.optimizers import OPTIMIZER_REGISTRY
+from optimization.schedulers import SCHEDULER_REGISTRY
 
 
 from utils.configs import (
@@ -13,6 +15,12 @@ from utils.configs import (
     TopKAccuracyConfig,
     CriterionConfigs,
     CrossEntropyLossConfigs,
+    OptimizerConfigs,
+    AdamWConfigs,
+    SchedulerConfigs,
+    LinearLRConfigs,
+    CosineAnnealingLRConfigs,
+    LinearThenCosineAnnealingLRConfigs,
     OptimizationConfig,
     DistributedConfig,
     DataLoaderConfig,
@@ -25,8 +33,8 @@ def parse_training_configs() -> TrainingConfig:
 
     optim_group = parser.add_argument_group("Optimization")
     optim_group.add_argument("--epochs", default=90, type=int)
+    optim_group.add_argument("--start-epoch", default=0, type=int)
     optim_group.add_argument("--batch-size", default=256, type=int)
-    optim_group.add_argument("--lr", default=5e-4, type=float)
     optim_group.add_argument("--warmup-iters", default=0, type=int)
     optim_group.add_argument(
         "--scheduler-step-unit",
@@ -41,10 +49,14 @@ def parse_training_configs() -> TrainingConfig:
     dist_group.add_argument("--dist-backend", default="nccl", type=str)
     dist_group.add_argument("--multiprocessing-distributed", action="store_true")
     dist_group.add_argument("--gpu", default=None, type=int)
+    dist_group.add_argument("--no-accel", action="store_true")
 
     log_group = parser.add_argument_group("Logging")
     log_group.add_argument("--metrics", nargs="+", default=["top_1_accuracy", "top_5_accuracy"], choices=METRICS_REGISTRY.keys())
     log_group.add_argument("--resume", default="", type=str)
+    log_group.add_argument("--print-freq", default=10, type=int)
+    log_group.add_argument("--evaluate", action="store_true")
+    log_group.add_argument("--seed", default=None, type=int)
 
     selection_group = parser.add_argument_group("Component Selection")
     selection_group.add_argument(
@@ -55,6 +67,14 @@ def parse_training_configs() -> TrainingConfig:
     )
     selection_group.add_argument(
         "--criterion", default="cross_entropy_loss", choices=CRITERIONS_REGISTRY.keys()
+    )
+    selection_group.add_argument(
+        "--optimizer", default="adamw", choices=OPTIMIZER_REGISTRY.keys()
+    )
+    selection_group.add_argument(
+        "--scheduler",
+        default="none",
+        choices=["none", *SCHEDULER_REGISTRY.keys()],
     )
 
     dataloader_group = parser.add_argument_group("DataLoader")
@@ -90,6 +110,64 @@ def parse_training_configs() -> TrainingConfig:
         "--ce-reduction",
         default="mean",
         choices=["none", "mean", "sum"],
+    )
+
+    adamw_group = parser.add_argument_group("Optimizer: AdamW")
+    adamw_group.add_argument("--adamw-lr", "--lr", dest="adamw_lr", default=5e-4, type=float)
+    adamw_group.add_argument(
+        "--adamw-weight-decay",
+        "--weight-decay",
+        dest="adamw_weight_decay",
+        default=0.05,
+        type=float,
+    )
+    adamw_group.add_argument(
+        "--adamw-betas",
+        default=[0.9, 0.999],
+        nargs=2,
+        type=float,
+    )
+    adamw_group.add_argument("--adamw-eps", default=1e-8, type=float)
+    adamw_group.add_argument(
+        "--adamw-amsgrad",
+        default=False,
+        action=argparse.BooleanOptionalAction,
+    )
+
+    linear_group = parser.add_argument_group("Scheduler: LinearLR")
+    linear_group.add_argument("--linear-start-factor", default=0.01, type=float)
+    linear_group.add_argument("--linear-end-factor", default=1.0, type=float)
+    linear_group.add_argument("--linear-total-iters", default=None, type=int)
+
+    cosine_group = parser.add_argument_group("Scheduler: CosineAnnealingLR")
+    cosine_group.add_argument("--cosine-eta-min", default=1e-6, type=float)
+    cosine_group.add_argument("--cosine-t-max", default=None, type=int)
+
+    linear_cosine_group = parser.add_argument_group("Scheduler: Linear + Cosine")
+    linear_cosine_group.add_argument(
+        "--linear-cosine-start-factor",
+        default=0.01,
+        type=float,
+    )
+    linear_cosine_group.add_argument(
+        "--linear-cosine-end-factor",
+        default=1.0,
+        type=float,
+    )
+    linear_cosine_group.add_argument(
+        "--linear-cosine-warmup-iters",
+        default=None,
+        type=int,
+    )
+    linear_cosine_group.add_argument(
+        "--linear-cosine-eta-min",
+        default=1e-6,
+        type=float,
+    )
+    linear_cosine_group.add_argument(
+        "--linear-cosine-t-max",
+        default=None,
+        type=int,
     )
 
     args = parser.parse_args()
@@ -139,11 +217,48 @@ def parse_training_configs() -> TrainingConfig:
     else:
         raise ValueError(f"No config defined for criterion: {args.criterion}")
 
+    optimizer_config: OptimizerConfigs | None
+    if args.optimizer == "adamw":
+        optimizer_config = AdamWConfigs(
+            lr=args.adamw_lr,
+            weight_decay=args.adamw_weight_decay,
+            betas=tuple(args.adamw_betas),
+            eps=args.adamw_eps,
+            amsgrad=args.adamw_amsgrad,
+        )
+    else:
+        raise ValueError(f"No config defined for optimizer: {args.optimizer}")
+
+    scheduler_config: SchedulerConfigs | None
+    if args.scheduler == "none":
+        scheduler_config = None
+    elif args.scheduler == "linear_lr":
+        scheduler_config = LinearLRConfigs(
+            start_factor=args.linear_start_factor,
+            end_factor=args.linear_end_factor,
+            total_iters=args.linear_total_iters,
+        )
+    elif args.scheduler == "cosine_annealing_lr":
+        scheduler_config = CosineAnnealingLRConfigs(
+            eta_min=args.cosine_eta_min,
+            t_max=args.cosine_t_max,
+        )
+    elif args.scheduler == "linear_then_cosine_annealing_lr":
+        scheduler_config = LinearThenCosineAnnealingLRConfigs(
+            linear_start_factor=args.linear_cosine_start_factor,
+            linear_end_factor=args.linear_cosine_end_factor,
+            warmup_iters=args.linear_cosine_warmup_iters,
+            cosine_eta_min=args.linear_cosine_eta_min,
+            cosine_t_max=args.linear_cosine_t_max,
+        )
+    else:
+        raise ValueError(f"No config defined for scheduler: {args.scheduler}")
+
     return TrainingConfig(
         optim=OptimizationConfig(
             epochs=args.epochs,
+            start_epoch=args.start_epoch,
             batch_size=args.batch_size,
-            lr=args.lr,
             warmup_iters=args.warmup_iters,
             scheduler_step_unit=args.scheduler_step_unit,
         ),
@@ -154,14 +269,25 @@ def parse_training_configs() -> TrainingConfig:
             dist_backend=args.dist_backend,
             multiprocessing_distributed=args.multiprocessing_distributed,
             gpu=args.gpu,
+            no_accel=args.no_accel,
         ),
-        logging=LoggingConfig(resume=args.resume, active_metrics=args.metrics),
+        logging=LoggingConfig(
+            resume=args.resume,
+            print_freq=args.print_freq,
+            evaluate=args.evaluate,
+            seed=args.seed,
+            active_metrics=args.metrics,
+        ),
         criterion=args.criterion,
+        optimizer=args.optimizer,
+        scheduler=args.scheduler,
         arch=args.arch,
         dataset=args.dataset,
         model_config=model_config,
         dataloader=dataloader_config,
         dataset_config=dataset_config,
         criterion_config=criterion_config,
+        optimizer_config=optimizer_config,
+        scheduler_config=scheduler_config,
         metrics_config=metrics_config_map,
     )
