@@ -15,47 +15,47 @@ logger = logging.getLogger(__name__)
 
 class TrainingManager():
     def __init__(
-            self,
-            *,
-            configs: TrainingConfig,
-            model: nn.Module,
-            optimizer: torch.optim.Optimizer,
-            scheduler: torch.optim.lr_scheduler.LRScheduler | None,
-            criterion,
-            train_dataloader: torch.utils.data.DataLoader,
-            val_dataloader: torch.utils.data.DataLoader | None,
-            metrics_engine: MetricsEngine,
-            local_rank: int,
-            device: torch.device,
-            ):
+        self,
+        *,
+        configs: TrainingConfig,
+        model: nn.Module,
+        optimizer: torch.optim.Optimizer,
+        scheduler: torch.optim.lr_scheduler.LRScheduler | None,
+        criterion,
+        train_dataloader: torch.utils.data.DataLoader,
+        val_dataloader: torch.utils.data.DataLoader | None,
+        metrics_engine: MetricsEngine,
+        local_rank: int,
+        device: torch.device,
+        ):
+    
+        self.configs = configs
+        self.model = model
+
+        self.local_rank = local_rank
+        self.device = device
+
+        if (
+            self.configs.dist.distributed
+            and torch.distributed.is_available()
+            and torch.distributed.is_initialized()
+        ):
+            self.global_rank = torch.distributed.get_rank()
+        else:
+            self.global_rank = 0
+
+        self.is_main_process = self.global_rank == 0
+
+        self.optimizer = optimizer
+        self.scheduler = scheduler
+        self.criterion = criterion
+
+        self.train_dataloader = train_dataloader
+        self.val_dataloader = val_dataloader
         
-            self.configs = configs
-            self.model = model
+        self.train_sampler = train_dataloader.sampler            
 
-            self.local_rank = local_rank
-            self.device = device
-
-            if (
-                self.configs.dist.distributed
-                and torch.distributed.is_available()
-                and torch.distributed.is_initialized()
-            ):
-                self.global_rank = torch.distributed.get_rank()
-            else:
-                self.global_rank = 0
-
-            self.is_main_process = self.global_rank == 0
-
-            self.optimizer = optimizer
-            self.scheduler = scheduler
-            self.criterion = criterion
-
-            self.train_dataloader = train_dataloader
-            self.val_dataloader = val_dataloader
-            
-            self.train_sampler = train_dataloader.sampler            
-
-            self.metrics_engine = metrics_engine
+        self.metrics_engine = metrics_engine
     
     def save_checkpoint(self, state, path, is_best, filename="checkpoint.pth.tar"):
         path.mkdir(parents=True, exist_ok=True)
