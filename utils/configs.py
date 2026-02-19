@@ -30,6 +30,14 @@ class DummyDatasetConfig:
 
 
 @dataclass
+class MnistDatasetConfig:
+    root: Path = Path("./data")
+    download: bool = True
+    transform: Any = None
+    target_transform: Any = None
+
+
+@dataclass
 class TopKAccuracyConfig:
     top_k: list[int] = field(default_factory=lambda: [1, 5])
 
@@ -237,7 +245,7 @@ class TrainingConfig:
     dataloader: DataLoaderConfig
 
     model_config: FeedForwardNetworkConfig
-    dataset_config: DummyDatasetConfig
+    dataset_config: DummyDatasetConfig | MnistDatasetConfig
 
     criterion_config: CriterionConfigs | None
     optimizer_config: OptimizerConfigs | None

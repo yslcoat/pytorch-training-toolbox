@@ -1,4 +1,8 @@
 import argparse
+from pathlib import Path
+
+import torch.nn as nn
+import torchvision.transforms as transforms
 
 from models.models import MODEL_REGISTRY
 from datasets.datasets import DATASET_REGISTRY
@@ -12,6 +16,7 @@ from utils.configs import (
     TrainingConfig, 
     FeedForwardNetworkConfig, 
     DummyDatasetConfig, 
+    MnistDatasetConfig,
     TopKAccuracyConfig,
     CriterionConfigs,
     CrossEntropyLossConfigs,
@@ -99,6 +104,24 @@ def parse_training_configs() -> TrainingConfig:
     dummy_group.add_argument("--dummy-n-samples", default=10000, type=int)
     dummy_group.add_argument("--dummy-val-n-samples", default=0, type=int)
     dummy_group.add_argument("--dummy-input-shape", default=[784], nargs="+", type=int)
+
+    mnist_group = parser.add_argument_group("Dataset: MNIST")
+    mnist_group.add_argument("--mnist-root", default="./data", type=str)
+    mnist_group.add_argument(
+        "--mnist-download",
+        default=True,
+        action=argparse.BooleanOptionalAction,
+    )
+    mnist_group.add_argument(
+        "--mnist-normalize",
+        default=True,
+        action=argparse.BooleanOptionalAction,
+    )
+    mnist_group.add_argument(
+        "--mnist-flatten",
+        default=True,
+        action=argparse.BooleanOptionalAction,
+    )
 
     topk_group = parser.add_argument_group("Metric: TopK")
     topk_group.add_argument("--topk-values", default=[1, 5], nargs="+", type=int)
@@ -194,6 +217,21 @@ def parse_training_configs() -> TrainingConfig:
             val_n_samples=args.dummy_val_n_samples,
             inputs_tensor_shape=args.dummy_input_shape,
             num_classes=args.ff_output_dim,
+        )
+    elif args.dataset == "MNIST":
+        mnist_transform_steps = [transforms.ToTensor()]
+        if args.mnist_normalize:
+            mnist_transform_steps.append(
+                transforms.Normalize((0.1307,), (0.3081,))
+            )
+        if args.mnist_flatten:
+            mnist_transform_steps.append(nn.Flatten(start_dim=0))
+
+        dataset_config = MnistDatasetConfig(
+            root=Path(args.mnist_root),
+            download=args.mnist_download,
+            transform=transforms.Compose(mnist_transform_steps),
+            target_transform=None,
         )
     else:
         raise ValueError(f"No config defined for dataset: {args.dataset}")

@@ -2,15 +2,17 @@ import logging
 
 from typing import Protocol
 from torch.utils.data import Dataset
+import torchvision
 
 from datasets.dummy_dataset import DummyDataset
-from utils.configs import TrainingConfig
+from utils.configs import (
+    DummyDatasetConfig,
+    MnistDatasetConfig,
+    TrainingConfig,
+)
 
 
 class DatasetBuilder(Protocol):
-    def has_partition(self, configs: TrainingConfig, partition: str) -> bool:
-        ...
-
     def build(self, configs: TrainingConfig, partition: str = "train") -> Dataset:
         ...
 
@@ -24,6 +26,12 @@ class DummyDatasetBuilder(DatasetBuilder):
         return False
 
     def build(self, configs: TrainingConfig, partition: str = "train") -> Dataset:
+        if not isinstance(configs.dataset_config, DummyDatasetConfig):
+            raise TypeError(
+                "DummyDatasetBuilder expects DummyDatasetConfig, "
+                f"got {type(configs.dataset_config)!r}"
+            )
+
         if not self.has_partition(configs, partition):
             raise ValueError(
                 f"Partition '{partition}' is not available for dataset '{configs.dataset}'."
@@ -43,10 +51,32 @@ class DummyDatasetBuilder(DatasetBuilder):
             inputs_tensor_shape=configs.dataset_config.inputs_tensor_shape,
             num_classes=configs.dataset_config.num_classes,
         )
+    
+
+class MnistDatasetBuilder(DatasetBuilder):
+    def build(self, configs: TrainingConfig, partition: str = "train") -> Dataset:
+        if not isinstance(configs.dataset_config, MnistDatasetConfig):
+            raise TypeError(
+                "MnistDatasetBuilder expects MnistDatasetConfig, "
+                f"got {type(configs.dataset_config)!r}"
+            )
+        if partition not in {"train", "val", "test"}:
+            raise ValueError(
+                f"Unsupported dataset partition '{partition}' for {configs.dataset}"
+            )
+
+        return torchvision.datasets.MNIST(
+            root=configs.dataset_config.root,
+            train=partition == "train",
+            transform=configs.dataset_config.transform,
+            target_transform=configs.dataset_config.target_transform,
+            download=configs.dataset_config.download,
+        )
 
 
 DATASET_REGISTRY: dict[str, DatasetBuilder] = {
     "DummyDataset": DummyDatasetBuilder(),
+    "MNIST": MnistDatasetBuilder()
 }
 
 
@@ -55,9 +85,7 @@ def create_dataset(
     partition: str = "train",
 ) -> Dataset:
     logging.info(
-        "=> creating %s dataset '%s'",
-        partition,
-        configs.dataset,
+        f"=> creating {partition} dataset '{configs.dataset}'",
     )
     builder = DATASET_REGISTRY.get(configs.dataset)
 
@@ -65,10 +93,3 @@ def create_dataset(
         raise ValueError(f"Dataset {configs.dataset} not supported.")
 
     return builder.build(configs, partition=partition)
-
-
-def has_dataset_partition(configs: TrainingConfig, partition: str) -> bool:
-    builder = DATASET_REGISTRY.get(configs.dataset)
-    if not builder:
-        raise ValueError(f"Dataset {configs.dataset} not supported.")
-    return builder.has_partition(configs, partition)

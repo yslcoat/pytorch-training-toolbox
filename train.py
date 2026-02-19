@@ -6,7 +6,7 @@ from criterions.criterions_factory import create_criterion
 from models.models import create_model
 from optimization.optimizers import create_optimizer
 from optimization.schedulers import create_scheduler
-from datasets.datasets import create_dataset, has_dataset_partition
+from datasets.datasets import create_dataset
 from datasets.data_utils import create_dataloader
 from utils.configs_parser import (
     TrainingConfig,
@@ -57,14 +57,8 @@ def main(gpu: int | None, ngpus_per_node: int, configs: TrainingConfig):
     train_dataset = create_dataset(configs, partition="train")
     train_loader = create_dataloader(train_dataset, configs, partition="train")
 
-    val_loader = None
-    if has_dataset_partition(configs, partition="val"):
-        val_dataset = create_dataset(configs, partition="val")
-        val_loader = create_dataloader(val_dataset, configs, partition="val")
-    else:
-        logging.info(
-            f"No 'val' partition available for dataset '{configs.dataset}'; training will proceed without validation."
-        )
+    val_dataset = create_dataset(configs, partition="val")
+    val_loader = create_dataloader(val_dataset, configs, partition="val")
 
     criterion = create_criterion(configs).to(device)
 
