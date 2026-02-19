@@ -18,11 +18,15 @@ class DatasetBuilder(Protocol):
 
 
 class DummyDatasetBuilder(DatasetBuilder):
-    def has_partition(self, configs: TrainingConfig, partition: str) -> bool:
+    def has_partition(
+        self,
+        dataset_config: DummyDatasetConfig,
+        partition: str,
+    ) -> bool:
         if partition == "train":
-            return configs.dataset_config.n_samples > 0
+            return dataset_config.n_samples > 0
         if partition == "val":
-            return configs.dataset_config.val_n_samples > 0
+            return dataset_config.val_n_samples > 0
         return False
 
     def build(self, configs: TrainingConfig, partition: str = "train") -> Dataset:
@@ -31,16 +35,17 @@ class DummyDatasetBuilder(DatasetBuilder):
                 "DummyDatasetBuilder expects DummyDatasetConfig, "
                 f"got {type(configs.dataset_config)!r}"
             )
+        dataset_config = configs.dataset_config
 
-        if not self.has_partition(configs, partition):
+        if not self.has_partition(dataset_config, partition):
             raise ValueError(
                 f"Partition '{partition}' is not available for dataset '{configs.dataset}'."
             )
 
         if partition == "train":
-            n_samples = configs.dataset_config.n_samples
+            n_samples = dataset_config.n_samples
         elif partition == "val":
-            n_samples = configs.dataset_config.val_n_samples
+            n_samples = dataset_config.val_n_samples
         else:
             raise ValueError(
                 f"Unsupported dataset partition '{partition}' for {configs.dataset}"
@@ -48,8 +53,8 @@ class DummyDatasetBuilder(DatasetBuilder):
 
         return DummyDataset(
             n_samples=n_samples,
-            inputs_tensor_shape=configs.dataset_config.inputs_tensor_shape,
-            num_classes=configs.dataset_config.num_classes,
+            inputs_tensor_shape=dataset_config.inputs_tensor_shape,
+            num_classes=dataset_config.num_classes,
         )
     
 
