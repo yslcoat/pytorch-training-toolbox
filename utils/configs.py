@@ -16,8 +16,17 @@ class FeedForwardNetworkConfig:
 @dataclass
 class DummyDatasetConfig:
     n_samples: int = 10000
+    val_n_samples: int = 0
     inputs_tensor_shape: list[int] = field(default_factory=lambda: [784])
     num_classes: int = 10
+
+    def __post_init__(self):
+        if self.n_samples <= 0:
+            raise ValueError(f"n_samples must be > 0, got {self.n_samples}")
+        if self.val_n_samples < 0:
+            raise ValueError(
+                f"val_n_samples must be >= 0, got {self.val_n_samples}"
+            )
 
 
 @dataclass

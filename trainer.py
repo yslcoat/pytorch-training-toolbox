@@ -69,11 +69,11 @@ class TrainingManager():
         if os.path.isfile(self.configs.logging.resume):
             if self.is_main_process:
                 logger.info("=> loading checkpoint '%s'", self.configs.logging.resume)
-            if self.configs.dist.gpu is None:
-                checkpoint = torch.load(self.configs.logging.resume, weights_only=False)
-            else:
-                loc = f"{self.device.type}:{self.configs.dist.gpu}"
-                checkpoint = torch.load(self.configs.logging.resume, map_location=loc, weights_only=False)
+            checkpoint = torch.load(
+                self.configs.logging.resume,
+                map_location=self.device,
+                weights_only=False,
+            )
             self.configs.optim.start_epoch = checkpoint["epoch"]
             best_loss = checkpoint.get("best_loss", float("inf"))
             if isinstance(best_loss, torch.Tensor):
@@ -122,10 +122,6 @@ class TrainingManager():
                 self.metrics_engine.progress.display(i + 1)
 
         return self.metrics_engine.process_epoch_metrics()
-
-    def validate(self, epoch):
-        pass
-
     
     def train(self):
         start_epoch = self.configs.optim.start_epoch

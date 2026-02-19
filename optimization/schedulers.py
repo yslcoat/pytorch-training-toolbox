@@ -191,9 +191,12 @@ def create_scheduler(
     configs: TrainingConfig,
     optimizer: Optimizer,
     train_loader: Sized,
-) -> LRScheduler | None:
+) -> LRScheduler:
     if configs.scheduler == "none":
-        return None
+        raise ValueError(
+            "create_scheduler called with scheduler='none'. "
+            "Guard this in the caller and skip scheduler creation."
+        )
 
     builder = SCHEDULER_REGISTRY.get(configs.scheduler)
     if builder is None:

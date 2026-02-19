@@ -1,14 +1,12 @@
 import logging
-
 import torch
-import torch.multiprocessing as mp
 
 from trainer import TrainingManager
 from criterions.criterions_factory import create_criterion
 from models.models import create_model
 from optimization.optimizers import create_optimizer
 from optimization.schedulers import create_scheduler
-from datasets.datasets import create_dataset
+from datasets.datasets import create_dataset, has_dataset_partition
 from datasets.data_utils import create_dataloader
 from utils.configs_parser import (
     TrainingConfig,
@@ -32,12 +30,16 @@ def initialize_training(configs: TrainingConfig):
 
     if configs.dist.multiprocessing_distributed:
         configs.dist.world_size = ngpus_per_node * configs.dist.world_size
-        mp.spawn(main, nprocs=ngpus_per_node, args=(ngpus_per_node, configs))
+        torch.multiprocessing.spawn(
+            main,
+            nprocs=ngpus_per_node,
+            args=(ngpus_per_node, configs),
+        )
     else:
         main(configs.dist.gpu, ngpus_per_node, configs)
 
 
-def main(gpu, ngpus_per_node: int, configs: TrainingConfig):
+def main(gpu: int | None, ngpus_per_node: int, configs: TrainingConfig):
     if gpu is not None:
         configs.dist.gpu = gpu
 
@@ -47,19 +49,30 @@ def main(gpu, ngpus_per_node: int, configs: TrainingConfig):
     configure_process_logging(configs)
 
     device = configure_training_device(configs)
+    if device is None:
+        raise RuntimeError("configure_training_device returned None.")
 
     model = create_model(configs, device, ngpus_per_node)
 
-    train_dataset = create_dataset(configs)
-    val_dataset = create_dataset(configs)
+    train_dataset = create_dataset(configs, partition="train")
+    train_loader = create_dataloader(train_dataset, configs, partition="train")
 
-    train_loader = create_dataloader(train_dataset, configs)
-    val_loader = create_dataloader(val_dataset, configs, partition='val')
+    val_loader = None
+    if has_dataset_partition(configs, partition="val"):
+        val_dataset = create_dataset(configs, partition="val")
+        val_loader = create_dataloader(val_dataset, configs, partition="val")
+    else:
+        logging.info(
+            f"No 'val' partition available for dataset '{configs.dataset}'; training will proceed without validation."
+        )
 
     criterion = create_criterion(configs).to(device)
 
     optimizer = create_optimizer(configs, model)
-    scheduler = create_scheduler(configs, optimizer, train_loader)
+
+    scheduler = None
+    if configs.scheduler != "none":
+        scheduler = create_scheduler(configs, optimizer, train_loader)
 
     metrics_engine = MetricsEngine(configs)
     

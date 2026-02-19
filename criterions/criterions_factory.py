@@ -13,19 +13,19 @@ class CriterionBuilder(Protocol):
 
 
 class CrossEntropyLossBuilder(CriterionBuilder):
-    def build(self, cross_entropy_configs: CrossEntropyLossConfigs | None) -> nn.Module:
-        if cross_entropy_configs is None:
-            cross_entropy_configs = CrossEntropyLossConfigs()
-        elif not isinstance(cross_entropy_configs, CrossEntropyLossConfigs):
+    def build(self, criterion_config: CriterionConfigs | None) -> nn.Module:
+        if criterion_config is None:
+            criterion_config = CrossEntropyLossConfigs()
+        elif not isinstance(criterion_config, CrossEntropyLossConfigs):
             raise TypeError(
                 "CrossEntropyLossBuilder expects CrossEntropyLossConfigs or None, "
-                f"got {type(cross_entropy_configs)!r}"
+                f"got {type(criterion_config)!r}"
             )
 
         return nn.CrossEntropyLoss(
-            label_smoothing=cross_entropy_configs.label_smoothing,
-            ignore_index=cross_entropy_configs.ignore_index,
-            reduction=cross_entropy_configs.reduction,
+            label_smoothing=criterion_config.label_smoothing,
+            ignore_index=criterion_config.ignore_index,
+            reduction=criterion_config.reduction,
         )
 
 

@@ -55,7 +55,6 @@ def parse_training_configs() -> TrainingConfig:
     log_group.add_argument("--metrics", nargs="+", default=["top_1_accuracy", "top_5_accuracy"], choices=METRICS_REGISTRY.keys())
     log_group.add_argument("--resume", default="", type=str)
     log_group.add_argument("--print-freq", default=10, type=int)
-    log_group.add_argument("--evaluate", action="store_true")
     log_group.add_argument("--seed", default=None, type=int)
 
     selection_group = parser.add_argument_group("Component Selection")
@@ -98,6 +97,7 @@ def parse_training_configs() -> TrainingConfig:
 
     dummy_group = parser.add_argument_group("Dataset: Dummy")
     dummy_group.add_argument("--dummy-n-samples", default=10000, type=int)
+    dummy_group.add_argument("--dummy-val-n-samples", default=0, type=int)
     dummy_group.add_argument("--dummy-input-shape", default=[784], nargs="+", type=int)
 
     topk_group = parser.add_argument_group("Metric: TopK")
@@ -191,6 +191,7 @@ def parse_training_configs() -> TrainingConfig:
     if args.dataset == "DummyDataset":
         dataset_config = DummyDatasetConfig(
             n_samples=args.dummy_n_samples,
+            val_n_samples=args.dummy_val_n_samples,
             inputs_tensor_shape=args.dummy_input_shape,
             num_classes=args.ff_output_dim,
         )
@@ -274,7 +275,6 @@ def parse_training_configs() -> TrainingConfig:
         logging=LoggingConfig(
             resume=args.resume,
             print_freq=args.print_freq,
-            evaluate=args.evaluate,
             seed=args.seed,
             active_metrics=args.metrics,
         ),

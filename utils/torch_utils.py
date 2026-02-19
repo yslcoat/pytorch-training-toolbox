@@ -10,12 +10,16 @@ import torch.distributed as dist
 from .configs import *
 
 
-def configure_training_device(configs: TrainingConfig):
+def configure_training_device(configs: TrainingConfig) -> torch.device:
     use_accel = not configs.dist.no_accel and torch.accelerator.is_available()
     if use_accel:
         if configs.dist.gpu is not None:
             torch.accelerator.set_device_index(configs.dist.gpu)
         device = torch.accelerator.current_accelerator()
+        if device is None:
+            raise RuntimeError(
+                "torch.accelerator.current_accelerator() returned None while accelerator is available."
+            )
     else:
         device = torch.device("cpu")
 
@@ -82,9 +86,26 @@ def configure_multi_device_model(configs: TrainingConfig, model, device, ngpus_p
                     "Distributed CUDA training requires a per-process GPU index. "
                     "Use torchrun (LOCAL_RANK) or provide --gpu."
                 )
+            if ngpus_per_node <= 0:
+                raise ValueError(f"ngpus_per_node must be > 0, got {ngpus_per_node}")
+
+            global_batch_size = configs.optim.batch_size
+            if global_batch_size < ngpus_per_node:
+                raise ValueError(
+                    "Configured batch_size is too small for distributed CUDA training. "
+                    f"Got batch_size={global_batch_size} with ngpus_per_node={ngpus_per_node}, "
+                    "which would result in a per-process batch size of 0."
+                )
+            if global_batch_size % ngpus_per_node != 0:
+                raise ValueError(
+                    "batch_size must be divisible by ngpus_per_node for distributed CUDA training "
+                    "to avoid silent truncation. "
+                    f"Got batch_size={global_batch_size}, ngpus_per_node={ngpus_per_node}."
+                )
+
             torch.cuda.set_device(configs.dist.gpu)
             model = model.cuda(configs.dist.gpu)
-            configs.optim.batch_size = int(configs.optim.batch_size / ngpus_per_node)
+            configs.optim.batch_size = global_batch_size // ngpus_per_node
             configs.dataloader.num_workers = int((configs.dataloader.num_workers + ngpus_per_node - 1) / ngpus_per_node)
             model = torch.nn.parallel.DistributedDataParallel(
                 model, device_ids=[configs.dist.gpu]
