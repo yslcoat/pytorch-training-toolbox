@@ -23,22 +23,6 @@ It currently supports:
 - `optimization/schedulers.py`: scheduler builders and registry
 - `metrics/metrics.py`: metric builders and `METRICS_REGISTRY`
 
-## Setup
-
-1. Create and activate an environment.
-2. Install dependencies (at minimum `torch` and `torchvision`).
-
-Example:
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install torch torchvision
-```
-
-If you need CUDA-specific wheels, install PyTorch from the official selector:
-https://pytorch.org/get-started/locally/
-
 ## Basic usage
 
 Inspect all available CLI options:
