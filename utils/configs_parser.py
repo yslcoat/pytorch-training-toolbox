@@ -14,6 +14,7 @@ from utils.configs import (
     FeedForwardNetworkConfig,
     DummyDatasetConfig,
     MnistDatasetConfig,
+    TumorSegmentationDatasetConfig,
     TopKAccuracyConfig,
     CriterionConfigs,
     CrossEntropyLossConfigs,
@@ -109,6 +110,32 @@ def parse_training_configs() -> TrainingConfig:
         default=True,
         action=argparse.BooleanOptionalAction,
     )
+
+    tumor_group = parser.add_argument_group("Dataset: TumorSegmentation")
+    tumor_group.add_argument(
+        "--tumor-root",
+        default="./tumor-segmentation/data",
+        type=str,
+    )
+    tumor_group.add_argument("--tumor-val-split", default=0.2, type=float)
+    tumor_group.add_argument("--tumor-split-seed", default=42, type=int)
+    tumor_group.add_argument("--tumor-image-height", default=512, type=int)
+    tumor_group.add_argument("--tumor-image-width", default=400, type=int)
+    tumor_group.add_argument(
+        "--tumor-augmentations",
+        default=True,
+        action=argparse.BooleanOptionalAction,
+    )
+    tumor_group.add_argument("--tumor-hflip-prob", default=0.5, type=float)
+    tumor_group.add_argument("--tumor-vflip-prob", default=0.1, type=float)
+    tumor_group.add_argument("--tumor-affine-prob", default=0.3, type=float)
+    tumor_group.add_argument("--tumor-rotate-degrees", default=10.0, type=float)
+    tumor_group.add_argument("--tumor-translate-ratio", default=0.05, type=float)
+    tumor_group.add_argument("--tumor-scale-min", default=0.95, type=float)
+    tumor_group.add_argument("--tumor-scale-max", default=1.05, type=float)
+    tumor_group.add_argument("--tumor-color-jitter-prob", default=0.2, type=float)
+    tumor_group.add_argument("--tumor-brightness", default=0.15, type=float)
+    tumor_group.add_argument("--tumor-contrast", default=0.15, type=float)
 
     topk_group = parser.add_argument_group("Metric: TopK")
     topk_group.add_argument("--topk-values", default=[1, 5], nargs="+", type=int)
@@ -209,6 +236,25 @@ def parse_training_configs() -> TrainingConfig:
         dataset_config = MnistDatasetConfig(
             root=Path(args.mnist_root),
             download=args.mnist_download,
+        )
+    elif args.dataset == "TumorSegmentation":
+        dataset_config = TumorSegmentationDatasetConfig(
+            root=Path(args.tumor_root),
+            val_split=args.tumor_val_split,
+            split_seed=args.tumor_split_seed,
+            image_height=args.tumor_image_height,
+            image_width=args.tumor_image_width,
+            enable_augmentations=args.tumor_augmentations,
+            hflip_prob=args.tumor_hflip_prob,
+            vflip_prob=args.tumor_vflip_prob,
+            affine_prob=args.tumor_affine_prob,
+            rotate_degrees=args.tumor_rotate_degrees,
+            translate_ratio=args.tumor_translate_ratio,
+            scale_min=args.tumor_scale_min,
+            scale_max=args.tumor_scale_max,
+            color_jitter_prob=args.tumor_color_jitter_prob,
+            brightness=args.tumor_brightness,
+            contrast=args.tumor_contrast,
         )
     else:
         raise ValueError(f"No config defined for dataset: {args.dataset}")

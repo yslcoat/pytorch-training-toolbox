@@ -36,6 +36,81 @@ class MnistDatasetConfig:
 
 
 @dataclass
+class TumorSegmentationDatasetConfig:
+    root: Path = Path("./tumor-segmentation/data")
+    val_split: float = 0.2
+    split_seed: int = 42
+
+    image_height: int = 512
+    image_width: int = 400
+
+    enable_augmentations: bool = True
+    hflip_prob: float = 0.5
+    vflip_prob: float = 0.1
+    affine_prob: float = 0.3
+    rotate_degrees: float = 10.0
+    translate_ratio: float = 0.05
+    scale_min: float = 0.95
+    scale_max: float = 1.05
+    color_jitter_prob: float = 0.2
+    brightness: float = 0.15
+    contrast: float = 0.15
+
+    def __post_init__(self):
+        if not 0.0 < self.val_split < 1.0:
+            raise ValueError(
+                f"val_split must be in (0.0, 1.0), got {self.val_split}"
+            )
+        if self.image_height <= 0:
+            raise ValueError(
+                f"image_height must be > 0, got {self.image_height}"
+            )
+        if self.image_width <= 0:
+            raise ValueError(
+                f"image_width must be > 0, got {self.image_width}"
+            )
+
+        probs = {
+            "hflip_prob": self.hflip_prob,
+            "vflip_prob": self.vflip_prob,
+            "affine_prob": self.affine_prob,
+            "color_jitter_prob": self.color_jitter_prob,
+        }
+        for name, val in probs.items():
+            if not 0.0 <= val <= 1.0:
+                raise ValueError(
+                    f"{name} must be in [0.0, 1.0], got {val}"
+                )
+
+        if self.rotate_degrees < 0.0:
+            raise ValueError(
+                f"rotate_degrees must be >= 0.0, got {self.rotate_degrees}"
+            )
+        if not 0.0 <= self.translate_ratio <= 1.0:
+            raise ValueError(
+                f"translate_ratio must be in [0.0, 1.0], got {self.translate_ratio}"
+            )
+        if self.scale_min <= 0.0 or self.scale_max <= 0.0:
+            raise ValueError(
+                "scale_min and scale_max must be > 0.0, got "
+                f"scale_min={self.scale_min}, scale_max={self.scale_max}"
+            )
+        if self.scale_min > self.scale_max:
+            raise ValueError(
+                "scale_min must be <= scale_max, got "
+                f"scale_min={self.scale_min}, scale_max={self.scale_max}"
+            )
+        if self.brightness < 0.0:
+            raise ValueError(
+                f"brightness must be >= 0.0, got {self.brightness}"
+            )
+        if self.contrast < 0.0:
+            raise ValueError(
+                f"contrast must be >= 0.0, got {self.contrast}"
+            )
+
+
+@dataclass
 class TopKAccuracyConfig:
     top_k: list[int] = field(default_factory=lambda: [1, 5])
 
@@ -243,7 +318,11 @@ class TrainingConfig:
     dataloader: DataLoaderConfig
 
     model_config: FeedForwardNetworkConfig
-    dataset_config: DummyDatasetConfig | MnistDatasetConfig
+    dataset_config: (
+        DummyDatasetConfig
+        | MnistDatasetConfig
+        | TumorSegmentationDatasetConfig
+    )
 
     criterion_config: CriterionConfigs | None
     optimizer_config: OptimizerConfigs | None
