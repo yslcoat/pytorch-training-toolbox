@@ -5,6 +5,8 @@ from typing import Callable
 import numpy as np
 import torch
 from PIL import Image
+import torchvision.transforms.functional as TF
+from torchvision.transforms import InterpolationMode
 
 
 class TumorSegmentationDataset(torch.utils.data.Dataset):
@@ -134,3 +136,125 @@ class TumorSegmentationDataset(torch.utils.data.Dataset):
             )
 
         return image_tensor, mask_tensor
+
+
+class TumorSegmentationEvalTransform:
+    def __init__(self, image_height: int, image_width: int):
+        self.image_size = [image_height, image_width]
+
+    def __call__(
+        self,
+        image: torch.Tensor,
+        mask: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        image = TF.resize(
+            image,
+            self.image_size,
+            interpolation=InterpolationMode.BILINEAR,
+        )
+        mask = TF.resize(
+            mask,
+            self.image_size,
+            interpolation=InterpolationMode.NEAREST,
+        )
+        mask = (mask > 0.5).float()
+        return image, mask
+
+
+class TumorSegmentationTrainTransform(TumorSegmentationEvalTransform):
+    def __init__(
+        self,
+        image_height: int,
+        image_width: int,
+        hflip_prob: float,
+        vflip_prob: float,
+        affine_prob: float,
+        rotate_degrees: float,
+        translate_ratio: float,
+        scale_min: float,
+        scale_max: float,
+        color_jitter_prob: float,
+        brightness: float,
+        contrast: float,
+    ):
+        super().__init__(image_height=image_height, image_width=image_width)
+        self.hflip_prob = hflip_prob
+        self.vflip_prob = vflip_prob
+        self.affine_prob = affine_prob
+        self.rotate_degrees = rotate_degrees
+        self.translate_ratio = translate_ratio
+        self.scale_min = scale_min
+        self.scale_max = scale_max
+        self.color_jitter_prob = color_jitter_prob
+        self.brightness = brightness
+        self.contrast = contrast
+
+    def __call__(
+        self,
+        image: torch.Tensor,
+        mask: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        image, mask = super().__call__(image, mask)
+
+        if torch.rand(1).item() < self.hflip_prob:
+            image = TF.hflip(image)
+            mask = TF.hflip(mask)
+        if torch.rand(1).item() < self.vflip_prob:
+            image = TF.vflip(image)
+            mask = TF.vflip(mask)
+
+        if torch.rand(1).item() < self.affine_prob:
+            _, height, width = image.shape
+            max_dx = int(round(self.translate_ratio * width))
+            max_dy = int(round(self.translate_ratio * height))
+
+            tx = (
+                int(torch.randint(-max_dx, max_dx + 1, (1,)).item())
+                if max_dx > 0
+                else 0
+            )
+            ty = (
+                int(torch.randint(-max_dy, max_dy + 1, (1,)).item())
+                if max_dy > 0
+                else 0
+            )
+            angle = float((torch.rand(1).item() * 2.0 - 1.0) * self.rotate_degrees)
+            scale = float(
+                self.scale_min
+                + (self.scale_max - self.scale_min) * torch.rand(1).item()
+            )
+
+            image = TF.affine(
+                image,
+                angle=angle,
+                translate=[tx, ty],
+                scale=scale,
+                shear=[0.0, 0.0],
+                interpolation=InterpolationMode.BILINEAR,
+                fill=0.0,
+            )
+            mask = TF.affine(
+                mask,
+                angle=angle,
+                translate=[tx, ty],
+                scale=scale,
+                shear=[0.0, 0.0],
+                interpolation=InterpolationMode.NEAREST,
+                fill=0.0,
+            )
+
+        if torch.rand(1).item() < self.color_jitter_prob:
+            if self.brightness > 0.0:
+                brightness_factor = float(
+                    1.0 + (torch.rand(1).item() * 2.0 - 1.0) * self.brightness
+                )
+                image = TF.adjust_brightness(image, brightness_factor)
+            if self.contrast > 0.0:
+                contrast_factor = float(
+                    1.0 + (torch.rand(1).item() * 2.0 - 1.0) * self.contrast
+                )
+                image = TF.adjust_contrast(image, contrast_factor)
+            image = image.clamp(0.0, 1.0)
+
+        mask = (mask > 0.5).float()
+        return image, mask
