@@ -1,8 +1,10 @@
 import logging
 
 from typing import Protocol
+import torch.nn as nn
 from torch.utils.data import Dataset
 import torchvision
+import torchvision.transforms as transforms
 
 from datasets.dummy_dataset import DummyDataset
 from utils.configs import (
@@ -56,9 +58,17 @@ class DummyDatasetBuilder(DatasetBuilder):
             inputs_tensor_shape=dataset_config.inputs_tensor_shape,
             num_classes=dataset_config.num_classes,
         )
-    
+
 
 class MnistDatasetBuilder(DatasetBuilder):
+    transform = transforms.Compose(
+        [
+            transforms.ToTensor(),
+            transforms.Normalize((0.1307,), (0.3081,)),
+            nn.Flatten(start_dim=0),
+        ]
+    )
+
     def build(self, configs: TrainingConfig, partition: str = "train") -> Dataset:
         if not isinstance(configs.dataset_config, MnistDatasetConfig):
             raise TypeError(
@@ -73,8 +83,8 @@ class MnistDatasetBuilder(DatasetBuilder):
         return torchvision.datasets.MNIST(
             root=configs.dataset_config.root,
             train=partition == "train",
-            transform=configs.dataset_config.transform,
-            target_transform=configs.dataset_config.target_transform,
+            transform=self.transform,
+            target_transform=None,
             download=configs.dataset_config.download,
         )
 

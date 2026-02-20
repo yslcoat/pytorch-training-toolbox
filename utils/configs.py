@@ -33,8 +33,6 @@ class DummyDatasetConfig:
 class MnistDatasetConfig:
     root: Path = Path("./data")
     download: bool = True
-    transform: Any = None
-    target_transform: Any = None
 
 
 @dataclass
@@ -240,7 +238,7 @@ class TrainingConfig:
     optimizer: str
     scheduler: str
 
-    arch: str 
+    arch: str
     dataset: str
     dataloader: DataLoaderConfig
 

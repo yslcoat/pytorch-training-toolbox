@@ -1,9 +1,6 @@
 import argparse
 from pathlib import Path
 
-import torch.nn as nn
-import torchvision.transforms as transforms
-
 from models.models import MODEL_REGISTRY
 from datasets.datasets import DATASET_REGISTRY
 from metrics.metrics import METRICS_REGISTRY
@@ -13,9 +10,9 @@ from optimization.schedulers import SCHEDULER_REGISTRY
 
 
 from utils.configs import (
-    TrainingConfig, 
-    FeedForwardNetworkConfig, 
-    DummyDatasetConfig, 
+    TrainingConfig,
+    FeedForwardNetworkConfig,
+    DummyDatasetConfig,
     MnistDatasetConfig,
     TopKAccuracyConfig,
     CriterionConfigs,
@@ -112,16 +109,6 @@ def parse_training_configs() -> TrainingConfig:
         default=True,
         action=argparse.BooleanOptionalAction,
     )
-    mnist_group.add_argument(
-        "--mnist-normalize",
-        default=True,
-        action=argparse.BooleanOptionalAction,
-    )
-    mnist_group.add_argument(
-        "--mnist-flatten",
-        default=True,
-        action=argparse.BooleanOptionalAction,
-    )
 
     topk_group = parser.add_argument_group("Metric: TopK")
     topk_group.add_argument("--topk-values", default=[1, 5], nargs="+", type=int)
@@ -204,7 +191,7 @@ def parse_training_configs() -> TrainingConfig:
         )
     else:
         raise ValueError(f"No config defined for arch: {args.arch}")
-    
+
     dataloader_config = DataLoaderConfig(
             shuffle=args.dataloader_shuffle,
             num_workers=args.dataloader_num_workers,
@@ -219,19 +206,9 @@ def parse_training_configs() -> TrainingConfig:
             num_classes=args.ff_output_dim,
         )
     elif args.dataset == "MNIST":
-        mnist_transform_steps = [transforms.ToTensor()]
-        if args.mnist_normalize:
-            mnist_transform_steps.append(
-                transforms.Normalize((0.1307,), (0.3081,))
-            )
-        if args.mnist_flatten:
-            mnist_transform_steps.append(nn.Flatten(start_dim=0))
-
         dataset_config = MnistDatasetConfig(
             root=Path(args.mnist_root),
             download=args.mnist_download,
-            transform=transforms.Compose(mnist_transform_steps),
-            target_transform=None,
         )
     else:
         raise ValueError(f"No config defined for dataset: {args.dataset}")
