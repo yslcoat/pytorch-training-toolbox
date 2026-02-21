@@ -18,6 +18,7 @@ from utils.configs import (
     TopKAccuracyConfig,
     CriterionConfigs,
     CrossEntropyLossConfigs,
+    DiceLossConfigs,
     OptimizerConfigs,
     AdamWConfigs,
     SchedulerConfigs,
@@ -149,6 +150,19 @@ def parse_training_configs() -> TrainingConfig:
         choices=["none", "mean", "sum"],
     )
 
+    dice_group = parser.add_argument_group("Criterion: DiceLoss")
+    dice_group.add_argument("--dice-smooth", default=1e-6, type=float)
+    dice_group.add_argument(
+        "--dice-from-logits",
+        default=False,
+        action=argparse.BooleanOptionalAction,
+    )
+    dice_group.add_argument(
+        "--dice-reduction",
+        default="mean",
+        choices=["none", "mean", "sum"],
+    )
+
     adamw_group = parser.add_argument_group("Optimizer: AdamW")
     adamw_group.add_argument("--adamw-lr", "--lr", dest="adamw_lr", default=5e-4, type=float)
     adamw_group.add_argument(
@@ -275,6 +289,12 @@ def parse_training_configs() -> TrainingConfig:
             label_smoothing=args.ce_label_smoothing,
             ignore_index=args.ce_ignore_index,
             reduction=args.ce_reduction,
+        )
+    elif args.criterion == "dice_loss":
+        criterion_config = DiceLossConfigs(
+            smooth=args.dice_smooth,
+            from_logits=args.dice_from_logits,
+            reduction=args.dice_reduction,
         )
     else:
         raise ValueError(f"No config defined for criterion: {args.criterion}")

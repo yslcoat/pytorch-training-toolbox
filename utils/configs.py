@@ -138,6 +138,21 @@ class CrossEntropyLossConfigs(CriterionConfigs):
 
 
 @dataclass
+class DiceLossConfigs(CriterionConfigs):
+    smooth: float = 1e-6
+    from_logits: bool = False
+    reduction: str = "mean"
+
+    def __post_init__(self):
+        if self.smooth < 0.0:
+            raise ValueError(f"smooth must be >= 0.0, got {self.smooth}")
+        if self.reduction not in {"none", "mean", "sum"}:
+            raise ValueError(
+                f"reduction must be one of ['none', 'mean', 'sum'], got {self.reduction}"
+            )
+
+
+@dataclass
 class OptimizerConfigs:
     pass
 
