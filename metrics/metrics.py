@@ -1,11 +1,12 @@
 from typing import Protocol
 import torch.nn as nn
 
+from .dice_score import DiceScore
 from .top_k_accuracy import Top1Accuracy, Top5Accuracy
 from utils.configs import TopKAccuracyConfig
 
 class MetricsBuilder(Protocol):
-    def build(self, metric_config: TopKAccuracyConfig | None) -> nn.Module:
+    def build(self, metric_config: object | None) -> nn.Module:
         ...
 
 def _validate_top_k_metric_config(
@@ -26,7 +27,7 @@ def _validate_top_k_metric_config(
         )
 
 class Top1Builder(MetricsBuilder):
-    def build(self, metric_config: TopKAccuracyConfig | None) -> nn.Module:
+    def build(self, metric_config: object | None) -> nn.Module:
         _validate_top_k_metric_config(
             metric_name="top_1_accuracy",
             expected_k=1,
@@ -35,7 +36,7 @@ class Top1Builder(MetricsBuilder):
         return Top1Accuracy()
 
 class Top5Builder(MetricsBuilder):
-    def build(self, metric_config: TopKAccuracyConfig | None) -> nn.Module:
+    def build(self, metric_config: object | None) -> nn.Module:
         _validate_top_k_metric_config(
             metric_name="top_5_accuracy",
             expected_k=5,
@@ -43,7 +44,13 @@ class Top5Builder(MetricsBuilder):
         )
         return Top5Accuracy()
 
+
+class DiceScoreBuilder(MetricsBuilder):
+    def build(self, metric_config: object | None) -> nn.Module:
+        return DiceScore()
+
 METRICS_REGISTRY = {
     "top_1_accuracy": Top1Builder(),
     "top_5_accuracy": Top5Builder(),
+    "dice_score": DiceScoreBuilder(),
 }
