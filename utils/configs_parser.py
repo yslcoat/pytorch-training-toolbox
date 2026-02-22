@@ -15,8 +15,10 @@ from utils.configs import (
     DummyDatasetConfig,
     MnistDatasetConfig,
     TopKAccuracyConfig,
+    DiceScoreConfig,
     CriterionConfigs,
     CrossEntropyLossConfigs,
+    DiceLossConfigs,
     OptimizerConfigs,
     AdamWConfigs,
     SchedulerConfigs,
@@ -110,14 +112,41 @@ def parse_training_configs() -> TrainingConfig:
         action=argparse.BooleanOptionalAction,
     )
 
+
     topk_group = parser.add_argument_group("Metric: TopK")
     topk_group.add_argument("--topk-values", default=[1, 5], nargs="+", type=int)
+
+    dice_score_group = parser.add_argument_group("Metric: DiceScore")
+    dice_score_group.add_argument("--dice-score-smooth", default=1e-6, type=float)
+    dice_score_group.add_argument(
+        "--dice-score-from-logits",
+        default=True,
+        action=argparse.BooleanOptionalAction,
+    )
+    dice_score_group.add_argument(
+        "--dice-score-threshold",
+        default=0.5,
+        type=float,
+    )
 
     ce_group = parser.add_argument_group("Criterion: CrossEntropyLoss")
     ce_group.add_argument("--ce-label-smoothing", default=0.0, type=float)
     ce_group.add_argument("--ce-ignore-index", default=-100, type=int)
     ce_group.add_argument(
         "--ce-reduction",
+        default="mean",
+        choices=["none", "mean", "sum"],
+    )
+
+    dice_group = parser.add_argument_group("Criterion: DiceLoss")
+    dice_group.add_argument("--dice-smooth", default=1e-6, type=float)
+    dice_group.add_argument(
+        "--dice-from-logits",
+        default=True,
+        action=argparse.BooleanOptionalAction,
+    )
+    dice_group.add_argument(
+        "--dice-reduction",
         default="mean",
         choices=["none", "mean", "sum"],
     )
@@ -222,6 +251,12 @@ def parse_training_configs() -> TrainingConfig:
         metrics_config_map["top_5_accuracy"] = TopKAccuracyConfig(
             top_k=list(args.topk_values)
         )
+    if "dice_score" in args.metrics:
+        metrics_config_map["dice_score"] = DiceScoreConfig(
+            smooth=args.dice_score_smooth,
+            from_logits=args.dice_score_from_logits,
+            threshold=args.dice_score_threshold,
+        )
 
     criterion_config: CriterionConfigs | None
     if args.criterion == "cross_entropy_loss":
@@ -229,6 +264,12 @@ def parse_training_configs() -> TrainingConfig:
             label_smoothing=args.ce_label_smoothing,
             ignore_index=args.ce_ignore_index,
             reduction=args.ce_reduction,
+        )
+    elif args.criterion == "dice_loss":
+        criterion_config = DiceLossConfigs(
+            smooth=args.dice_smooth,
+            from_logits=args.dice_from_logits,
+            reduction=args.dice_reduction,
         )
     else:
         raise ValueError(f"No config defined for criterion: {args.criterion}")

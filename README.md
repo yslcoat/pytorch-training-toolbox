@@ -5,10 +5,10 @@ A small, registry-driven training framework for PyTorch experiments.
 It currently supports:
 - Model: `FeedForwardNeuralNetwork`
 - Datasets: `DummyDataset`, `MNIST`
-- Criterion: `cross_entropy_loss`
+- Criterion: `cross_entropy_loss`, `dice_loss`
 - Optimizer: `adamw`
 - Schedulers: `none`, `linear_lr`, `cosine_annealing_lr`, `linear_then_cosine_annealing_lr`
-- Metrics: `top_1_accuracy`, `top_5_accuracy`
+- Metrics: `top_1_accuracy`, `top_5_accuracy`, `dice_score`
 
 ## Repository layout
 

@@ -1,11 +1,14 @@
 from typing import Protocol
 import torch.nn as nn
 
+from criterions.dice_loss import DiceLoss
 from utils.configs import (
     CriterionConfigs,
     CrossEntropyLossConfigs,
+    DiceLossConfigs,
     TrainingConfig,
 )
+
 
 class CriterionBuilder(Protocol):
     def build(self, criterion_config: CriterionConfigs | None) -> nn.Module:
@@ -27,10 +30,28 @@ class CrossEntropyLossBuilder(CriterionBuilder):
             ignore_index=criterion_config.ignore_index,
             reduction=criterion_config.reduction,
         )
+    
+
+class DiceLossBuilder(CriterionBuilder):
+    def build(self, criterion_config: CriterionConfigs | None) -> nn.Module:
+        if criterion_config is None:
+            criterion_config = DiceLossConfigs()
+        elif not isinstance(criterion_config, DiceLossConfigs):
+            raise TypeError(
+                "DiceLossBuilder expects DiceLossConfigs or None, "
+                f"got {type(criterion_config)!r}"
+            )
+
+        return DiceLoss(
+            smooth=criterion_config.smooth,
+            from_logits=criterion_config.from_logits,
+            reduction=criterion_config.reduction,
+        )
 
 
 CRITERIONS_REGISTRY = {
     "cross_entropy_loss": CrossEntropyLossBuilder(),
+    "dice_loss": DiceLossBuilder(),
 }
 
 

@@ -41,6 +41,21 @@ class TopKAccuracyConfig:
 
 
 @dataclass
+class DiceScoreConfig:
+    smooth: float = 1e-6
+    from_logits: bool = True
+    threshold: float = 0.5
+
+    def __post_init__(self):
+        if self.smooth < 0.0:
+            raise ValueError(f"smooth must be >= 0.0, got {self.smooth}")
+        if not 0.0 <= self.threshold <= 1.0:
+            raise ValueError(
+                f"threshold must be in [0.0, 1.0], got {self.threshold}"
+            )
+
+
+@dataclass
 class CriterionConfigs:
     pass
 
@@ -56,6 +71,21 @@ class CrossEntropyLossConfigs(CriterionConfigs):
             raise ValueError(
                 f"label_smoothing must be in [0.0, 1.0], got {self.label_smoothing}"
             )
+        if self.reduction not in {"none", "mean", "sum"}:
+            raise ValueError(
+                f"reduction must be one of ['none', 'mean', 'sum'], got {self.reduction}"
+            )
+
+
+@dataclass
+class DiceLossConfigs(CriterionConfigs):
+    smooth: float = 1e-6
+    from_logits: bool = True
+    reduction: str = "mean"
+
+    def __post_init__(self):
+        if self.smooth < 0.0:
+            raise ValueError(f"smooth must be >= 0.0, got {self.smooth}")
         if self.reduction not in {"none", "mean", "sum"}:
             raise ValueError(
                 f"reduction must be one of ['none', 'mean', 'sum'], got {self.reduction}"
@@ -243,7 +273,10 @@ class TrainingConfig:
     dataloader: DataLoaderConfig
 
     model_config: FeedForwardNetworkConfig
-    dataset_config: DummyDatasetConfig | MnistDatasetConfig
+    dataset_config: (
+        DummyDatasetConfig
+        | MnistDatasetConfig
+    )
 
     criterion_config: CriterionConfigs | None
     optimizer_config: OptimizerConfigs | None
