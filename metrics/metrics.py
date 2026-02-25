@@ -2,8 +2,9 @@ from typing import Protocol
 import torch.nn as nn
 
 from .dice_score import DiceScore
+from .intersection_over_union import BBoxIoUScore
 from .top_k_accuracy import Top1Accuracy, Top5Accuracy
-from utils.configs import DiceScoreConfig, TopKAccuracyConfig
+from utils.configs import BBoxIoUScoreConfig, DiceScoreConfig, TopKAccuracyConfig
 
 class MetricsBuilder(Protocol):
     def build(self, metric_config: object | None) -> nn.Module:
@@ -63,10 +64,30 @@ class DiceScoreBuilder(MetricsBuilder):
             from_logits=metric_config.from_logits,
             threshold=metric_config.threshold,
         )
+
+
+class BBoxIoUScoreBuilder(MetricsBuilder):
+    def build(self, metric_config: object | None) -> nn.Module:
+        if metric_config is None:
+            metric_config = BBoxIoUScoreConfig()
+        elif not isinstance(metric_config, BBoxIoUScoreConfig):
+            raise TypeError(
+                "bbox_iou_score expects BBoxIoUScoreConfig or None, "
+                f"got {type(metric_config)!r}"
+            )
+
+        return BBoxIoUScore(
+            smooth=metric_config.smooth,
+            from_logits=metric_config.from_logits,
+            box_format=metric_config.box_format,
+            reduction=metric_config.reduction,
+        )
     
 
 METRICS_REGISTRY = {
     "top_1_accuracy": Top1Builder(),
     "top_5_accuracy": Top5Builder(),
     "dice_score": DiceScoreBuilder(),
+    "bbox_iou_score": BBoxIoUScoreBuilder(),
+    "intersection_over_union": BBoxIoUScoreBuilder(),
 }

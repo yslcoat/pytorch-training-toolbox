@@ -14,6 +14,7 @@ from utils.configs import (
     FeedForwardNetworkConfig,
     DummyDatasetConfig,
     MnistDatasetConfig,
+    BBoxIoUScoreConfig,
     TopKAccuracyConfig,
     DiceScoreConfig,
     CriterionConfigs,
@@ -127,6 +128,24 @@ def parse_training_configs() -> TrainingConfig:
         "--dice-score-threshold",
         default=0.5,
         type=float,
+    )
+
+    bbox_iou_group = parser.add_argument_group("Metric: BBoxIoUScore")
+    bbox_iou_group.add_argument("--bbox-iou-smooth", default=1e-6, type=float)
+    bbox_iou_group.add_argument(
+        "--bbox-iou-from-logits",
+        default=False,
+        action=argparse.BooleanOptionalAction,
+    )
+    bbox_iou_group.add_argument(
+        "--bbox-iou-box-format",
+        default="xyxy",
+        choices=["xyxy", "cxcywh"],
+    )
+    bbox_iou_group.add_argument(
+        "--bbox-iou-reduction",
+        default="mean",
+        choices=["none", "mean", "sum"],
     )
 
     ce_group = parser.add_argument_group("Criterion: CrossEntropyLoss")
@@ -257,6 +276,20 @@ def parse_training_configs() -> TrainingConfig:
             from_logits=args.dice_score_from_logits,
             threshold=args.dice_score_threshold,
         )
+    if (
+        "bbox_iou_score" in args.metrics
+        or "intersection_over_union" in args.metrics
+    ):
+        bbox_iou_config = BBoxIoUScoreConfig(
+            smooth=args.bbox_iou_smooth,
+            from_logits=args.bbox_iou_from_logits,
+            box_format=args.bbox_iou_box_format,
+            reduction=args.bbox_iou_reduction,
+        )
+        if "bbox_iou_score" in args.metrics:
+            metrics_config_map["bbox_iou_score"] = bbox_iou_config
+        if "intersection_over_union" in args.metrics:
+            metrics_config_map["intersection_over_union"] = bbox_iou_config
 
     criterion_config: CriterionConfigs | None
     if args.criterion == "cross_entropy_loss":

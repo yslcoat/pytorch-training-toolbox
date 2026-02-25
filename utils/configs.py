@@ -56,6 +56,28 @@ class DiceScoreConfig:
 
 
 @dataclass
+class BBoxIoUScoreConfig:
+    smooth: float = 1e-6
+    from_logits: bool = False
+    box_format: str = "xyxy"
+    reduction: str = "mean"
+
+    def __post_init__(self):
+        if self.smooth < 0.0:
+            raise ValueError(f"smooth must be >= 0.0, got {self.smooth}")
+        if self.box_format not in {"xyxy", "cxcywh"}:
+            raise ValueError(
+                "box_format must be one of ['xyxy', 'cxcywh'], "
+                f"got {self.box_format}"
+            )
+        if self.reduction not in {"none", "mean", "sum"}:
+            raise ValueError(
+                "reduction must be one of ['none', 'mean', 'sum'], "
+                f"got {self.reduction}"
+            )
+
+
+@dataclass
 class CriterionConfigs:
     pass
 

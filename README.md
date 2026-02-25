@@ -8,7 +8,7 @@ It currently supports:
 - Criterion: `cross_entropy_loss`, `dice_loss`
 - Optimizer: `adamw`
 - Schedulers: `none`, `linear_lr`, `cosine_annealing_lr`, `linear_then_cosine_annealing_lr`
-- Metrics: `top_1_accuracy`, `top_5_accuracy`, `dice_score`
+- Metrics: `top_1_accuracy`, `top_5_accuracy`, `dice_score`, `bbox_iou_score` (alias: `intersection_over_union`)
 
 ## Repository layout
 
