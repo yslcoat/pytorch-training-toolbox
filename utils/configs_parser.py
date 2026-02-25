@@ -2,7 +2,7 @@ import argparse
 from pathlib import Path
 
 from models.models import MODEL_REGISTRY
-from datasets.datasets import DATASET_REGISTRY
+from datasets_factory.datasets import DATASET_REGISTRY
 from metrics.metrics import METRICS_REGISTRY
 from criterions.criterions_factory import CRITERIONS_REGISTRY
 from optimization.optimizers import OPTIMIZER_REGISTRY

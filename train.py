@@ -6,8 +6,8 @@ from criterions.criterions_factory import create_criterion
 from models.models import create_model
 from optimization.optimizers import create_optimizer
 from optimization.schedulers import create_scheduler
-from datasets.datasets import create_dataset
-from datasets.data_utils import create_dataloader
+from datasets_factory.datasets import create_dataset
+from datasets_factory.data_utils import create_dataloader
 from utils.configs_parser import (
     TrainingConfig,
     parse_training_configs
