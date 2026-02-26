@@ -1,6 +1,5 @@
 import os
 import pathlib
-import logging
 from PIL import Image
 from typing import Tuple, Dict, List
 import xml.etree.ElementTree as ET
@@ -39,22 +38,21 @@ class ImageNetDataset(Dataset):
     # annotation path for obj detection: root folder -> ILSVRC -> Annotations -> CLS-LOC -> train/val -> class_folders -> filename.xml
     def __init__(
         self,
-        root_dir: str,
+        root_dir: pathlib.Path,
         partition: str = "train",
         transforms=None,
         object_detection=False,
     ) -> None:
-        self.img_dir = pathlib.Path(
-            os.path.join(root_dir, "ILSVRC", "Data", "CLS-LOC", partition)
-        )
+        root_dir = pathlib.Path(root_dir)
+        self.img_dir = root_dir / "ILSVRC" / "Data" / "CLS-LOC" / partition
         self.object_detection = object_detection
         if object_detection:
-            self.annotation_dir = pathlib.Path(
-                os.path.join(root_dir, "Annotations", "CLS-LOC", partition)
+            self.annotation_dir = (
+                root_dir / "ILSVRC" / "Annotations" / "CLS-LOC" / partition
             )
-            self.annotation_paths = [
+            self.annotation_paths = sorted(
                 f for f in self.annotation_dir.rglob("*") if f.suffix.lower() == ".xml"
-            ]
+            )
             self.img_paths = []
 
             for path in self.annotation_paths:
@@ -64,10 +62,12 @@ class ImageNetDataset(Dataset):
                 img_base_path = pathlib.Path(*path_parts)
                 self.img_paths.append(img_base_path.with_suffix(".JPEG"))
         else:
-            self.img_paths = [f for f in self.img_dir.rglob("*") if f.suffix == ".JPEG"]
+            self.img_paths = sorted(
+                f for f in self.img_dir.rglob("*") if f.suffix.lower() == ".jpeg"
+            )
 
         self.readable_classes_dict = self.extract_readable_imagenet_labels(
-            os.path.join(root_dir, "LOC_synset_mapping.txt")
+            root_dir / "LOC_synset_mapping.txt"
         )
         self.transforms = transforms
         self.classes, self.class_to_idx = self.find_classes(

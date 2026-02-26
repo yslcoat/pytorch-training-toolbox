@@ -14,6 +14,8 @@ from utils.configs import (
     FeedForwardNetworkConfig,
     DummyDatasetConfig,
     MnistDatasetConfig,
+    ImageNetDatasetConfig,
+    DataAugmentationConfig,
     BBoxIoUScoreConfig,
     TopKAccuracyConfig,
     DiceScoreConfig,
@@ -106,12 +108,24 @@ def parse_training_configs() -> TrainingConfig:
     dummy_group.add_argument("--dummy-input-shape", default=[784], nargs="+", type=int)
 
     mnist_group = parser.add_argument_group("Dataset: MNIST")
-    mnist_group.add_argument("--mnist-root", default="./data", type=str)
+    mnist_group.add_argument("--mnist-root", default="/home/yslcoat/data", type=str)
     mnist_group.add_argument(
         "--mnist-download",
         default=True,
         action=argparse.BooleanOptionalAction,
     )
+
+    imagenet_group = parser.add_argument_group("Dataset: ImageNet")
+    imagenet_group.add_argument("--imagenet-root", default="./data", type=str)
+    imagenet_group.add_argument(
+        "--imagenet-object-detection",
+        default=False,
+        action=argparse.BooleanOptionalAction,
+    )
+
+    aug_group = parser.add_argument_group("Data Augmentation")
+    aug_group.add_argument("--randaug-num-ops", default=2, type=int)
+    aug_group.add_argument("--randaug-magnitude", default=9, type=int)
 
 
     topk_group = parser.add_argument_group("Metric: TopK")
@@ -258,8 +272,18 @@ def parse_training_configs() -> TrainingConfig:
             root=Path(args.mnist_root),
             download=args.mnist_download,
         )
+    elif args.dataset == "ImageNet":
+        dataset_config = ImageNetDatasetConfig(
+            root=Path(args.imagenet_root),
+            object_detection=args.imagenet_object_detection,
+        )
     else:
         raise ValueError(f"No config defined for dataset: {args.dataset}")
+
+    data_augmentation_config = DataAugmentationConfig(
+        randaug_num_ops=args.randaug_num_ops,
+        randaug_magnitude=args.randaug_magnitude,
+    )
 
     metrics_config_map = {}
     if "top_1_accuracy" in args.metrics:
@@ -375,6 +399,7 @@ def parse_training_configs() -> TrainingConfig:
         model_config=model_config,
         dataloader=dataloader_config,
         dataset_config=dataset_config,
+        data_augmentation=data_augmentation_config,
         criterion_config=criterion_config,
         optimizer_config=optimizer_config,
         scheduler_config=scheduler_config,

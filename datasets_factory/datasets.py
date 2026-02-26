@@ -6,12 +6,15 @@ from torch.utils.data import Dataset
 import torchvision
 import torchvision.transforms as transforms
 
-from datasets.dummy_dataset import DummyDataset
+from datasets_factory.dummy_dataset import DummyDataset
 from utils.configs import (
     DummyDatasetConfig,
     MnistDatasetConfig,
+    ImageNetDatasetConfig,
     TrainingConfig,
+    DataAugmentationConfig,
 )
+from datasets_factory.imagenet_dataset import ImageNetDataset
 
 
 class DatasetBuilder(Protocol):
@@ -87,11 +90,71 @@ class MnistDatasetBuilder(DatasetBuilder):
             target_transform=None,
             download=configs.dataset_config.download,
         )
+    
+
+class ImageNetDatasetBuilder(DatasetBuilder):
+    normalize = transforms.Normalize(
+        mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
+    )
+
+    @classmethod
+    def build_train_transform(
+        cls,
+        data_augmentation_config: DataAugmentationConfig,
+    ) -> transforms.Compose:
+        return transforms.Compose(
+            [
+                transforms.Resize((224, 224)),
+                transforms.RandAugment(
+                    num_ops=data_augmentation_config.randaug_num_ops,
+                    magnitude=data_augmentation_config.randaug_magnitude,
+                ),
+                transforms.ToTensor(),
+                cls.normalize,
+            ]
+        )
+
+    @classmethod
+    def build_eval_transform(cls) -> transforms.Compose:
+        return transforms.Compose(
+            [
+                transforms.Resize((224, 224)),
+                transforms.CenterCrop(224),
+                transforms.ToTensor(),
+                cls.normalize,
+            ]
+        )
+
+    def build(self, configs: TrainingConfig, partition: str = "train") -> Dataset:
+        if not isinstance(configs.dataset_config, ImageNetDatasetConfig):
+            raise TypeError(
+                "ImageNetDatasetBuilder expects ImageNetDatasetConfig, "
+                f"got {type(configs.dataset_config)!r}"
+            )
+        if partition not in {"train", "val", "test"}:
+            raise ValueError(
+                f"Unsupported dataset partition '{partition}' for {configs.dataset}"
+            )
+
+        dataset_partition = "val" if partition == "test" else partition
+        transform = (
+            self.build_train_transform(configs.data_augmentation)
+            if dataset_partition == "train"
+            else self.build_eval_transform()
+        )
+
+        return ImageNetDataset(
+            root_dir=configs.dataset_config.root,
+            partition=dataset_partition,
+            transforms=transform,
+            object_detection=configs.dataset_config.object_detection,
+        )
 
 
 DATASET_REGISTRY: dict[str, DatasetBuilder] = {
     "DummyDataset": DummyDatasetBuilder(),
-    "MNIST": MnistDatasetBuilder()
+    "MNIST": MnistDatasetBuilder(),
+    "ImageNet": ImageNetDatasetBuilder(),
 }
 
 

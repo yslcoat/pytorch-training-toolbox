@@ -31,8 +31,31 @@ class DummyDatasetConfig:
 
 @dataclass
 class MnistDatasetConfig:
-    root: Path = Path("./data")
+    root: Path = Path("/home/yslcoat/data")
     download: bool = True
+
+
+@dataclass
+class ImageNetDatasetConfig:
+    root: Path = Path("./data")
+    object_detection: bool = False
+
+
+@dataclass
+class DataAugmentationConfig:
+    randaug_num_ops: int = 2
+    randaug_magnitude: int = 9
+
+    def __post_init__(self):
+        if self.randaug_num_ops < 0:
+            raise ValueError(
+                f"randaug_num_ops must be >= 0, got {self.randaug_num_ops}"
+            )
+        if not 0 <= self.randaug_magnitude <= 30:
+            raise ValueError(
+                "randaug_magnitude must be in [0, 30], "
+                f"got {self.randaug_magnitude}"
+            )
 
 
 @dataclass
@@ -298,7 +321,9 @@ class TrainingConfig:
     dataset_config: (
         DummyDatasetConfig
         | MnistDatasetConfig
+        | ImageNetDatasetConfig
     )
+    data_augmentation: DataAugmentationConfig
 
     criterion_config: CriterionConfigs | None
     optimizer_config: OptimizerConfigs | None
