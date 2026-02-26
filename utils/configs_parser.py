@@ -1,4 +1,5 @@
 import argparse
+from dataclasses import MISSING, fields
 from pathlib import Path
 
 from models.models import MODEL_REGISTRY
@@ -35,34 +36,113 @@ from utils.configs import (
 )
 
 
+def config_field_default(config_cls: type, field_name: str):
+    config_field = next(
+        (field for field in fields(config_cls) if field.name == field_name),
+        None,
+    )
+    if config_field is None:
+        raise ValueError(
+            f"Field '{field_name}' not found on config class {config_cls.__name__}"
+        )
+    if config_field.default is not MISSING:
+        return config_field.default
+    if config_field.default_factory is not MISSING:
+        return config_field.default_factory()
+    raise ValueError(
+        f"Field '{field_name}' on config class {config_cls.__name__} has no default"
+    )
+
+
 def parse_training_configs() -> TrainingConfig:
     parser = argparse.ArgumentParser("Configuration parser for model training")
 
     optim_group = parser.add_argument_group("Optimization")
-    optim_group.add_argument("--epochs", default=90, type=int)
-    optim_group.add_argument("--start-epoch", default=0, type=int)
-    optim_group.add_argument("--batch-size", default=256, type=int)
-    optim_group.add_argument("--warmup-iters", default=0, type=int)
+    optim_group.add_argument(
+        "--epochs",
+        default=config_field_default(OptimizationConfig, "epochs"),
+        type=int,
+    )
+    optim_group.add_argument(
+        "--start-epoch",
+        default=config_field_default(OptimizationConfig, "start_epoch"),
+        type=int,
+    )
+    optim_group.add_argument(
+        "--batch-size",
+        default=config_field_default(OptimizationConfig, "batch_size"),
+        type=int,
+    )
+    optim_group.add_argument(
+        "--warmup-iters",
+        default=config_field_default(OptimizationConfig, "warmup_iters"),
+        type=int,
+    )
     optim_group.add_argument(
         "--scheduler-step-unit",
-        default="step",
+        default=config_field_default(OptimizationConfig, "scheduler_step_unit"),
         choices=["step", "epoch"],
     )
 
     dist_group = parser.add_argument_group("Distributed")
-    dist_group.add_argument("--world-size", default=-1, type=int)
-    dist_group.add_argument("--rank", default=-1, type=int)
-    dist_group.add_argument("--dist-url", default="tcp://224.66.41.62:23456", type=str)
-    dist_group.add_argument("--dist-backend", default="nccl", type=str)
-    dist_group.add_argument("--multiprocessing-distributed", action="store_true")
-    dist_group.add_argument("--gpu", default=None, type=int)
-    dist_group.add_argument("--no-accel", action="store_true")
+    dist_group.add_argument(
+        "--world-size",
+        default=config_field_default(DistributedConfig, "world_size"),
+        type=int,
+    )
+    dist_group.add_argument(
+        "--rank",
+        default=config_field_default(DistributedConfig, "rank"),
+        type=int,
+    )
+    dist_group.add_argument(
+        "--dist-url",
+        default=config_field_default(DistributedConfig, "dist_url"),
+        type=str,
+    )
+    dist_group.add_argument(
+        "--dist-backend",
+        default=config_field_default(DistributedConfig, "dist_backend"),
+        type=str,
+    )
+    dist_group.add_argument(
+        "--multiprocessing-distributed",
+        default=config_field_default(DistributedConfig, "multiprocessing_distributed"),
+        action="store_true",
+    )
+    dist_group.add_argument(
+        "--gpu",
+        default=config_field_default(DistributedConfig, "gpu"),
+        type=int,
+    )
+    dist_group.add_argument(
+        "--no-accel",
+        default=config_field_default(DistributedConfig, "no_accel"),
+        action="store_true",
+    )
 
     log_group = parser.add_argument_group("Logging")
-    log_group.add_argument("--metrics", nargs="+", default=["top_1_accuracy", "top_5_accuracy"], choices=METRICS_REGISTRY.keys())
-    log_group.add_argument("--resume", default="", type=str)
-    log_group.add_argument("--print-freq", default=10, type=int)
-    log_group.add_argument("--seed", default=None, type=int)
+    log_group.add_argument(
+        "--metrics",
+        nargs="+",
+        default=config_field_default(LoggingConfig, "active_metrics"),
+        choices=METRICS_REGISTRY.keys(),
+    )
+    log_group.add_argument(
+        "--resume",
+        default=config_field_default(LoggingConfig, "resume"),
+        type=str,
+    )
+    log_group.add_argument(
+        "--print-freq",
+        default=config_field_default(LoggingConfig, "print_freq"),
+        type=int,
+    )
+    log_group.add_argument(
+        "--seed",
+        default=config_field_default(LoggingConfig, "seed"),
+        type=int,
+    )
 
     selection_group = parser.add_argument_group("Component Selection")
     selection_group.add_argument(
@@ -86,159 +166,278 @@ def parse_training_configs() -> TrainingConfig:
     dataloader_group = parser.add_argument_group("DataLoader")
     dataloader_group.add_argument(
         "--dataloader-shuffle",
-        default=True,
+        default=config_field_default(DataLoaderConfig, "shuffle"),
         action=argparse.BooleanOptionalAction,
     )
-    dataloader_group.add_argument("--dataloader-num-workers", default=4, type=int)
+    dataloader_group.add_argument(
+        "--dataloader-num-workers",
+        default=config_field_default(DataLoaderConfig, "num_workers"),
+        type=int,
+    )
     dataloader_group.add_argument(
         "--dataloader-pin-memory",
-        default=True,
+        default=config_field_default(DataLoaderConfig, "pin_memory"),
         action=argparse.BooleanOptionalAction,
     )
 
     ff_group = parser.add_argument_group("Model: FeedForward")
-    ff_group.add_argument("--ff-input-size", default=784, type=int)
-    ff_group.add_argument("--ff-n-layers", default=3, type=int)
-    ff_group.add_argument("--ff-hidden-dim", default=256, type=int)
-    ff_group.add_argument("--ff-output-dim", default=10, type=int)
+    ff_group.add_argument(
+        "--ff-input-size",
+        default=config_field_default(FeedForwardNetworkConfig, "input_size"),
+        type=int,
+    )
+    ff_group.add_argument(
+        "--ff-n-layers",
+        default=config_field_default(FeedForwardNetworkConfig, "n_layers"),
+        type=int,
+    )
+    ff_group.add_argument(
+        "--ff-hidden-dim",
+        default=config_field_default(FeedForwardNetworkConfig, "hidden_dim"),
+        type=int,
+    )
+    ff_group.add_argument(
+        "--ff-output-dim",
+        default=config_field_default(FeedForwardNetworkConfig, "output_dim"),
+        type=int,
+    )
 
     dummy_group = parser.add_argument_group("Dataset: Dummy")
-    dummy_group.add_argument("--dummy-n-samples", default=10000, type=int)
-    dummy_group.add_argument("--dummy-val-n-samples", default=0, type=int)
-    dummy_group.add_argument("--dummy-input-shape", default=[784], nargs="+", type=int)
+    dummy_group.add_argument(
+        "--dummy-n-samples",
+        default=config_field_default(DummyDatasetConfig, "n_samples"),
+        type=int,
+    )
+    dummy_group.add_argument(
+        "--dummy-val-n-samples",
+        default=config_field_default(DummyDatasetConfig, "val_n_samples"),
+        type=int,
+    )
+    dummy_group.add_argument(
+        "--dummy-input-shape",
+        default=config_field_default(DummyDatasetConfig, "inputs_tensor_shape"),
+        nargs="+",
+        type=int,
+    )
 
     mnist_group = parser.add_argument_group("Dataset: MNIST")
-    mnist_group.add_argument("--mnist-root", default="/home/yslcoat/data", type=str)
+    mnist_group.add_argument(
+        "--mnist-root",
+        default=str(config_field_default(MnistDatasetConfig, "root")),
+        type=str,
+    )
     mnist_group.add_argument(
         "--mnist-download",
-        default=True,
+        default=config_field_default(MnistDatasetConfig, "download"),
         action=argparse.BooleanOptionalAction,
     )
 
     imagenet_group = parser.add_argument_group("Dataset: ImageNet")
-    imagenet_group.add_argument("--imagenet-root", default="./data", type=str)
+    imagenet_group.add_argument(
+        "--imagenet-root",
+        default=str(config_field_default(ImageNetDatasetConfig, "root")),
+        type=str,
+    )
     imagenet_group.add_argument(
         "--imagenet-object-detection",
-        default=False,
+        default=config_field_default(ImageNetDatasetConfig, "object_detection"),
         action=argparse.BooleanOptionalAction,
     )
 
     aug_group = parser.add_argument_group("Data Augmentation")
-    aug_group.add_argument("--randaug-num-ops", default=2, type=int)
-    aug_group.add_argument("--randaug-magnitude", default=9, type=int)
+    aug_group.add_argument(
+        "--randaug-num-ops",
+        default=config_field_default(DataAugmentationConfig, "randaug_num_ops"),
+        type=int,
+    )
+    aug_group.add_argument(
+        "--randaug-magnitude",
+        default=config_field_default(DataAugmentationConfig, "randaug_magnitude"),
+        type=int,
+    )
 
 
     topk_group = parser.add_argument_group("Metric: TopK")
-    topk_group.add_argument("--topk-values", default=[1, 5], nargs="+", type=int)
+    topk_group.add_argument(
+        "--topk-values",
+        default=config_field_default(TopKAccuracyConfig, "top_k"),
+        nargs="+",
+        type=int,
+    )
 
     dice_score_group = parser.add_argument_group("Metric: DiceScore")
-    dice_score_group.add_argument("--dice-score-smooth", default=1e-6, type=float)
+    dice_score_group.add_argument(
+        "--dice-score-smooth",
+        default=config_field_default(DiceScoreConfig, "smooth"),
+        type=float,
+    )
     dice_score_group.add_argument(
         "--dice-score-from-logits",
-        default=True,
+        default=config_field_default(DiceScoreConfig, "from_logits"),
         action=argparse.BooleanOptionalAction,
     )
     dice_score_group.add_argument(
         "--dice-score-threshold",
-        default=0.5,
+        default=config_field_default(DiceScoreConfig, "threshold"),
         type=float,
     )
 
     bbox_iou_group = parser.add_argument_group("Metric: BBoxIoUScore")
-    bbox_iou_group.add_argument("--bbox-iou-smooth", default=1e-6, type=float)
+    bbox_iou_group.add_argument(
+        "--bbox-iou-smooth",
+        default=config_field_default(BBoxIoUScoreConfig, "smooth"),
+        type=float,
+    )
     bbox_iou_group.add_argument(
         "--bbox-iou-from-logits",
-        default=False,
+        default=config_field_default(BBoxIoUScoreConfig, "from_logits"),
         action=argparse.BooleanOptionalAction,
     )
     bbox_iou_group.add_argument(
         "--bbox-iou-box-format",
-        default="xyxy",
+        default=config_field_default(BBoxIoUScoreConfig, "box_format"),
         choices=["xyxy", "cxcywh"],
     )
     bbox_iou_group.add_argument(
         "--bbox-iou-reduction",
-        default="mean",
+        default=config_field_default(BBoxIoUScoreConfig, "reduction"),
         choices=["none", "mean", "sum"],
     )
 
     ce_group = parser.add_argument_group("Criterion: CrossEntropyLoss")
-    ce_group.add_argument("--ce-label-smoothing", default=0.0, type=float)
-    ce_group.add_argument("--ce-ignore-index", default=-100, type=int)
+    ce_group.add_argument(
+        "--ce-label-smoothing",
+        default=config_field_default(CrossEntropyLossConfigs, "label_smoothing"),
+        type=float,
+    )
+    ce_group.add_argument(
+        "--ce-ignore-index",
+        default=config_field_default(CrossEntropyLossConfigs, "ignore_index"),
+        type=int,
+    )
     ce_group.add_argument(
         "--ce-reduction",
-        default="mean",
+        default=config_field_default(CrossEntropyLossConfigs, "reduction"),
         choices=["none", "mean", "sum"],
     )
 
     dice_group = parser.add_argument_group("Criterion: DiceLoss")
-    dice_group.add_argument("--dice-smooth", default=1e-6, type=float)
+    dice_group.add_argument(
+        "--dice-smooth",
+        default=config_field_default(DiceLossConfigs, "smooth"),
+        type=float,
+    )
     dice_group.add_argument(
         "--dice-from-logits",
-        default=True,
+        default=config_field_default(DiceLossConfigs, "from_logits"),
         action=argparse.BooleanOptionalAction,
     )
     dice_group.add_argument(
         "--dice-reduction",
-        default="mean",
+        default=config_field_default(DiceLossConfigs, "reduction"),
         choices=["none", "mean", "sum"],
     )
 
     adamw_group = parser.add_argument_group("Optimizer: AdamW")
-    adamw_group.add_argument("--adamw-lr", "--lr", dest="adamw_lr", default=5e-4, type=float)
+    adamw_group.add_argument(
+        "--adamw-lr",
+        "--lr",
+        dest="adamw_lr",
+        default=config_field_default(AdamWConfigs, "lr"),
+        type=float,
+    )
     adamw_group.add_argument(
         "--adamw-weight-decay",
         "--weight-decay",
         dest="adamw_weight_decay",
-        default=0.05,
+        default=config_field_default(AdamWConfigs, "weight_decay"),
         type=float,
     )
     adamw_group.add_argument(
         "--adamw-betas",
-        default=[0.9, 0.999],
+        default=config_field_default(AdamWConfigs, "betas"),
         nargs=2,
         type=float,
     )
-    adamw_group.add_argument("--adamw-eps", default=1e-8, type=float)
+    adamw_group.add_argument(
+        "--adamw-eps",
+        default=config_field_default(AdamWConfigs, "eps"),
+        type=float,
+    )
     adamw_group.add_argument(
         "--adamw-amsgrad",
-        default=False,
+        default=config_field_default(AdamWConfigs, "amsgrad"),
         action=argparse.BooleanOptionalAction,
     )
 
     linear_group = parser.add_argument_group("Scheduler: LinearLR")
-    linear_group.add_argument("--linear-start-factor", default=0.01, type=float)
-    linear_group.add_argument("--linear-end-factor", default=1.0, type=float)
-    linear_group.add_argument("--linear-total-iters", default=None, type=int)
+    linear_group.add_argument(
+        "--linear-start-factor",
+        default=config_field_default(LinearLRConfigs, "start_factor"),
+        type=float,
+    )
+    linear_group.add_argument(
+        "--linear-end-factor",
+        default=config_field_default(LinearLRConfigs, "end_factor"),
+        type=float,
+    )
+    linear_group.add_argument(
+        "--linear-total-iters",
+        default=config_field_default(LinearLRConfigs, "total_iters"),
+        type=int,
+    )
 
     cosine_group = parser.add_argument_group("Scheduler: CosineAnnealingLR")
-    cosine_group.add_argument("--cosine-eta-min", default=1e-6, type=float)
-    cosine_group.add_argument("--cosine-t-max", default=None, type=int)
+    cosine_group.add_argument(
+        "--cosine-eta-min",
+        default=config_field_default(CosineAnnealingLRConfigs, "eta_min"),
+        type=float,
+    )
+    cosine_group.add_argument(
+        "--cosine-t-max",
+        default=config_field_default(CosineAnnealingLRConfigs, "t_max"),
+        type=int,
+    )
 
     linear_cosine_group = parser.add_argument_group("Scheduler: Linear + Cosine")
     linear_cosine_group.add_argument(
         "--linear-cosine-start-factor",
-        default=0.01,
+        default=config_field_default(
+            LinearThenCosineAnnealingLRConfigs,
+            "linear_start_factor",
+        ),
         type=float,
     )
     linear_cosine_group.add_argument(
         "--linear-cosine-end-factor",
-        default=1.0,
+        default=config_field_default(
+            LinearThenCosineAnnealingLRConfigs,
+            "linear_end_factor",
+        ),
         type=float,
     )
     linear_cosine_group.add_argument(
         "--linear-cosine-warmup-iters",
-        default=None,
+        default=config_field_default(
+            LinearThenCosineAnnealingLRConfigs,
+            "warmup_iters",
+        ),
         type=int,
     )
     linear_cosine_group.add_argument(
         "--linear-cosine-eta-min",
-        default=1e-6,
+        default=config_field_default(
+            LinearThenCosineAnnealingLRConfigs,
+            "cosine_eta_min",
+        ),
         type=float,
     )
     linear_cosine_group.add_argument(
         "--linear-cosine-t-max",
-        default=None,
+        default=config_field_default(
+            LinearThenCosineAnnealingLRConfigs,
+            "cosine_t_max",
+        ),
         type=int,
     )
 
