@@ -18,4 +18,20 @@ class VisionTransformer(nn.Module):
         self.pos_embedding = None
 
     def forward(self, x):
+        # Expected input shape: (batch_size, n_channels, height, width)
         pass
+
+
+if __name__ == "__main__":
+    model = VisionTransformer(
+        image_size=224,
+        patch_size=16,
+        num_classes=1000,
+        emb_dim=768,
+        n_heads=12,
+        n_blocks=12,
+        dropout=0.1
+    )
+
+    input_tensor = torch.randn(1, 3, 224, 224)
+    output = model(input_tensor)
