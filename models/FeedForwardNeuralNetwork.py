@@ -14,6 +14,9 @@ class FeedForwardNeuralNetwork(nn.Module):
 
     def forward(self, x: torch.Tensor):
         # x.shape: [batch_size, input_size]
+        input_shapes = x.shape
+        if input_shapes[1] > 1:
+            x = x.view(input_shapes[0], -1) # Flattens 3 channels into one dimension: [batch_size, n_channels, height, width] -> [batch_size, n_channels*height*width]
         x = F.relu(self.input_layer(x))
         x = self.dropout(x) 
 
