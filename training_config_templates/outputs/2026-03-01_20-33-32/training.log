@@ -1,0 +1,4 @@
+2026-03-01 20:33:32,174 | INFO | root | => creating model 'VisionTransformer'
+2026-03-01 20:33:33,718 | INFO | root | => creating train dataset 'ImageNet'
+2026-03-01 20:33:45,130 | INFO | root | => creating val dataset 'ImageNet'
+2026-03-01 20:33:45,441 | INFO | trainer | Epoch: 0
