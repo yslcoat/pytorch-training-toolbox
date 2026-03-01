@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 
 class VisionTransformer(nn.Module):
-    def __init__(self, *, image_size, patch_size, num_classes, emb_dim, n_heads, n_blocks, dropout):
+    def __init__(self, *, image_size: tuple[int, int] | int, patch_size: int, num_classes: int, emb_dim: int, n_heads: int, n_blocks: int, dropout: float):
         super(VisionTransformer, self).__init__()
 
         self.patch_size = patch_size
@@ -13,6 +13,16 @@ class VisionTransformer(nn.Module):
         self.n_heads = n_heads
         self.n_blocks = n_blocks
         self.dropout = dropout
+
+        if isinstance(image_size, int):
+            image_size = (image_size, image_size)
+
+        if image_size[0] % patch_size != 0:
+            raise ValueError(f"Image height must be divisible by patch size. Got {image_size[0]} and {patch_size}.")
+        if image_size[1] % patch_size != 0:
+            raise ValueError(f"Image width must be divisible by patch size. Got {image_size[1]} and {patch_size}.")
+
+        self.n_patches = (image_size[0] // patch_size) * (image_size[1] // patch_size)
 
         self.to_patch_embedding = None
         self.pos_embedding = None
