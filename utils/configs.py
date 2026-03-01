@@ -14,6 +14,20 @@ class FeedForwardNetworkConfig:
 
 
 @dataclass
+class VisionTransformerConfig:
+    image_size: tuple[int, int] | int = 224
+    n_channels: int = 3
+    patch_size: int = 16
+    num_classes: int = 1000
+    emb_dim: int = 768
+    n_heads: int = 12
+    n_blocks: int = 12
+    attn_head_dim: int = 64
+    dropout: float = 0.1
+    emb_dropout: float = 0.1
+
+
+@dataclass
 class DummyDatasetConfig:
     n_samples: int = 10000
     val_n_samples: int = 0
@@ -317,7 +331,10 @@ class TrainingConfig:
     dataset: str
     dataloader: DataLoaderConfig
 
-    model_config: FeedForwardNetworkConfig
+    model_config: (
+        FeedForwardNetworkConfig
+        | VisionTransformerConfig
+    )
     dataset_config: (
         DummyDatasetConfig
         | MnistDatasetConfig

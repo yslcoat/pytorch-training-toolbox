@@ -13,6 +13,7 @@ from optimization.schedulers import SCHEDULER_REGISTRY
 from utils.configs import (
     TrainingConfig,
     FeedForwardNetworkConfig,
+    VisionTransformerConfig,
     DummyDatasetConfig,
     MnistDatasetConfig,
     ImageNetDatasetConfig,
@@ -201,6 +202,59 @@ def parse_training_configs() -> TrainingConfig:
         default=config_field_default(FeedForwardNetworkConfig, "output_dim"),
         type=int,
     )
+
+    vit_group = parser.add_argument_group("Model: VisionTransformer")
+    vit_group.add_argument(
+        "--vit-image-size",
+        default=config_field_default(VisionTransformerConfig, "image_size"),
+        type=int,
+    )
+    vit_group.add_argument(
+        "--vit-n-channels",
+        default=config_field_default(VisionTransformerConfig, "n_channels"),
+        type=int,
+    )
+    vit_group.add_argument(
+        "--vit-patch-size",
+        default=config_field_default(VisionTransformerConfig, "patch_size"),
+        type=int,
+    )
+    vit_group.add_argument(
+        "--vit-num-classes",
+        default=config_field_default(VisionTransformerConfig, "num_classes"),
+        type=int,
+    )
+    vit_group.add_argument(
+        "--vit-emb-dim",
+        default=config_field_default(VisionTransformerConfig, "emb_dim"),
+        type=int,
+    )
+    vit_group.add_argument(
+        "--vit-n-heads",
+        default=config_field_default(VisionTransformerConfig, "n_heads"),
+        type=int,
+    )
+    vit_group.add_argument(
+        "--vit-n-blocks",
+        default=config_field_default(VisionTransformerConfig, "n_blocks"),
+        type=int,
+    )
+    vit_group.add_argument(
+        "--vit-attn-head-dim",
+        default=config_field_default(VisionTransformerConfig, "attn_head_dim"),
+        type=int,
+    )
+    vit_group.add_argument(
+        "--vit-dropout",
+        default=config_field_default(VisionTransformerConfig, "dropout"),
+        type=float,
+    )
+    vit_group.add_argument(
+        "--vit-emb-dropout",
+        default=config_field_default(VisionTransformerConfig, "emb_dropout"),
+        type=float,
+    )
+
 
     dummy_group = parser.add_argument_group("Dataset: Dummy")
     dummy_group.add_argument(
@@ -449,6 +503,19 @@ def parse_training_configs() -> TrainingConfig:
             n_layers=args.ff_n_layers,
             hidden_dim=args.ff_hidden_dim,
             output_dim=args.ff_output_dim,
+        )
+    elif args.arch == "VisionTransformer":
+        model_config = VisionTransformerConfig(
+            image_size=args.vit_image_size,
+            n_channels=args.vit_n_channels,
+            patch_size=args.vit_patch_size,
+            num_classes=args.vit_num_classes,
+            emb_dim=args.vit_emb_dim,
+            n_heads=args.vit_n_heads,
+            n_blocks=args.vit_n_blocks,
+            attn_head_dim=args.vit_attn_head_dim,
+            dropout=args.vit_dropout,
+            emb_dropout=args.vit_emb_dropout,
         )
     else:
         raise ValueError(f"No config defined for arch: {args.arch}")
