@@ -45,9 +45,10 @@ class VisionTransformerBuilder(ModelBuilder):
             patch_size=model_config.patch_size,
             num_classes=model_config.num_classes,
             emb_dim=model_config.emb_dim,
+            mlp_dim=model_config.mlp_dim,
+            attn_head_dim=model_config.attn_head_dim,
             n_heads=model_config.n_heads,
             n_blocks=model_config.n_blocks,
-            attn_head_dim=model_config.attn_head_dim,
             dropout=model_config.dropout,
             emb_dropout=model_config.emb_dropout,
         )

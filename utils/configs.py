@@ -19,10 +19,11 @@ class VisionTransformerConfig:
     n_channels: int = 3
     patch_size: int = 16
     num_classes: int = 1000
-    emb_dim: int = 768
-    n_heads: int = 12
-    n_blocks: int = 12
+    emb_dim: int = 1024
+    mlp_dim: int = 2048
     attn_head_dim: int = 64
+    n_heads: int = 16
+    n_blocks: int = 6
     dropout: float = 0.1
     emb_dropout: float = 0.1
 

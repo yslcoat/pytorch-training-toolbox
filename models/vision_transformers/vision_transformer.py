@@ -124,9 +124,10 @@ class VisionTransformer(nn.Module):
         patch_size: int,
         num_classes: int,
         emb_dim: int,
+        mlp_dim: int,
+        attn_head_dim: int,
         n_heads: int,
         n_blocks: int,
-        attn_head_dim: int,
         dropout: float = 0.0,
         emb_dropout: float = 0.0,
     ):
@@ -170,7 +171,7 @@ class VisionTransformer(nn.Module):
             depth=n_blocks,
             heads=n_heads,
             dim_head=attn_head_dim,
-            mlp_dim=emb_dim * 4,
+            mlp_dim=mlp_dim,
             dropout=dropout,
         )
         self.mlp_head = nn.Sequential(
@@ -214,7 +215,8 @@ if __name__ == "__main__":
         n_channels=3,
         patch_size=16,
         num_classes=1000,
-        emb_dim=768,
+        emb_dim=1024,
+        mlp_dim=2048,
         n_heads=12,
         n_blocks=12,
         attn_head_dim=64,

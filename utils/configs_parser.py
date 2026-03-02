@@ -230,6 +230,11 @@ def parse_training_configs() -> TrainingConfig:
         type=int,
     )
     vit_group.add_argument(
+        "--vit-mlp-dim",
+        default=config_field_default(VisionTransformerConfig, "mlp_dim"),
+        type=int,
+    )
+    vit_group.add_argument(
         "--vit-n-heads",
         default=config_field_default(VisionTransformerConfig, "n_heads"),
         type=int,
@@ -511,9 +516,10 @@ def parse_training_configs() -> TrainingConfig:
             patch_size=args.vit_patch_size,
             num_classes=args.vit_num_classes,
             emb_dim=args.vit_emb_dim,
+            mlp_dim=args.vit_mlp_dim,
+            attn_head_dim=args.vit_attn_head_dim,
             n_heads=args.vit_n_heads,
             n_blocks=args.vit_n_blocks,
-            attn_head_dim=args.vit_attn_head_dim,
             dropout=args.vit_dropout,
             emb_dropout=args.vit_emb_dropout,
         )
