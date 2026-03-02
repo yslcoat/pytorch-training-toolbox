@@ -4,6 +4,7 @@ batch_size=256
 model_architecture="FeedForwardNeuralNetwork"
 dataset="MNIST"
 model_save_dir="/home/yslcoat/trained_models"
+scheduler="linear + cosine"
 
 systemd-inhibit --what=sleep python ../train.py \
     --dataset "$dataset" \
