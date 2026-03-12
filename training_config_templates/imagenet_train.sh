@@ -12,3 +12,4 @@ systemd-inhibit --what=sleep python ../train.py \
     --arch "$model_architecture" \
     --epochs "$n_epochs" \
     --batch-size "$batch_size" \
+    --dataloader-collate-fn "mixup"

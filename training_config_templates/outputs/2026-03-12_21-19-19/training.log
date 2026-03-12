@@ -1,0 +1,2 @@
+2026-03-12 21:19:19,561 | INFO | root | => creating model 'VisionTransformer'
+2026-03-12 21:19:19,933 | INFO | root | => creating train dataset 'ImageNet'
