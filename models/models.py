@@ -27,7 +27,7 @@ class FeedForwardNeuralNetworkBuilder(ModelBuilder):
             input_size=model_config.input_size,
             n_hidden_layers=model_config.n_layers,
             hidden_dim=model_config.hidden_dim,
-            output_dim=model_config.output_dim,
+            output_dim=model_config.num_classes,
             dropout=model_config.dropout,
         )
 

@@ -180,6 +180,11 @@ def parse_training_configs() -> TrainingConfig:
         default=config_field_default(DataLoaderConfig, "pin_memory"),
         action=argparse.BooleanOptionalAction,
     )
+    dataloader_group.add_argument(
+        "--dataloader-collate-fn",
+        default=config_field_default(DataLoaderConfig, "collate_fn"),
+        type=str,
+    )
 
     ff_group = parser.add_argument_group("Model: FeedForward")
     ff_group.add_argument(
@@ -199,7 +204,7 @@ def parse_training_configs() -> TrainingConfig:
     )
     ff_group.add_argument(
         "--ff-output-dim",
-        default=config_field_default(FeedForwardNetworkConfig, "output_dim"),
+        default=config_field_default(FeedForwardNetworkConfig, "num_classes"),
         type=int,
     )
 
@@ -507,7 +512,7 @@ def parse_training_configs() -> TrainingConfig:
             input_size=args.ff_input_size,
             n_layers=args.ff_n_layers,
             hidden_dim=args.ff_hidden_dim,
-            output_dim=args.ff_output_dim,
+            num_classes=args.ff_output_dim,
         )
     elif args.arch == "VisionTransformer":
         model_config = VisionTransformerConfig(
@@ -529,7 +534,8 @@ def parse_training_configs() -> TrainingConfig:
     dataloader_config = DataLoaderConfig(
             shuffle=args.dataloader_shuffle,
             num_workers=args.dataloader_num_workers,
-            pin_memory=args.dataloader_pin_memory
+            pin_memory=args.dataloader_pin_memory,
+            collate_fn=args.dataloader_collate_fn,
         )
 
     if args.dataset == "DummyDataset":
@@ -537,7 +543,6 @@ def parse_training_configs() -> TrainingConfig:
             n_samples=args.dummy_n_samples,
             val_n_samples=args.dummy_val_n_samples,
             inputs_tensor_shape=args.dummy_input_shape,
-            num_classes=args.ff_output_dim,
         )
     elif args.dataset == "MNIST":
         dataset_config = MnistDatasetConfig(

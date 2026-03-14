@@ -5,6 +5,7 @@ model_architecture="VisionTransformer"
 dataset="ImageNet"
 model_save_dir="/home/yslcoat/trained_models"
 data_dir="/home/yslcoat/data/imagenet1k/"
+lr_scheduler="linear_then_cosine_annealing_lr"
 
 systemd-inhibit --what=sleep python ../train.py \
     --dataset "$dataset" \
@@ -12,4 +13,5 @@ systemd-inhibit --what=sleep python ../train.py \
     --arch "$model_architecture" \
     --epochs "$n_epochs" \
     --batch-size "$batch_size" \
+    --scheduler "$lr_scheduler" \
     --dataloader-collate-fn "mixup"

@@ -9,6 +9,22 @@ class TopKBase(nn.Module):
             raise ValueError(f"k must be > 0 for TopK metric, got {k}")
         self.k = k
 
+    def _resolve_targets(self, outputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+        if targets.ndim == 1:
+            return targets.long()
+
+        if targets.ndim == 2 and targets.size(1) == 1:
+            return targets.squeeze(1).long()
+
+        if targets.ndim == 2 and targets.size(1) == outputs.size(1):
+            return targets.float().argmax(dim=1)
+
+        raise ValueError(
+            "Top-k accuracy expects classification targets of shape "
+            "[batch_size] or [batch_size, num_classes] (for mixed/soft labels). "
+            f"Got shape {tuple(targets.shape)}."
+        )
+
     def forward(self, outputs: torch.Tensor, targets: torch.Tensor) -> float:
         with torch.no_grad():
             if outputs.ndim < 2:
@@ -23,10 +39,15 @@ class TopKBase(nn.Module):
                     "Reduce k or increase model output dimension."
                 )
 
-            batch_size = targets.size(0)
+            hard_targets = self._resolve_targets(outputs, targets)
+            if hard_targets.shape[0] != outputs.size(0):
+                raise ValueError(
+                    f"Mismatched batch for outputs/targets: {outputs.size(0)} vs {hard_targets.size(0)}"
+                )
+            batch_size = hard_targets.size(0)
             _, pred = outputs.topk(self.k, 1, True, True)
             pred = pred.t()
-            correct = pred.eq(targets.view(1, -1).expand_as(pred))
+            correct = pred.eq(hard_targets.view(1, -1).expand_as(pred))
             correct_k = correct[:self.k].reshape(-1).float().sum(0, keepdim=True)
             return correct_k.mul_(100.0 / batch_size).item()
 

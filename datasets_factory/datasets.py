@@ -59,7 +59,7 @@ class DummyDatasetBuilder(DatasetBuilder):
         return DummyDataset(
             n_samples=n_samples,
             inputs_tensor_shape=dataset_config.inputs_tensor_shape,
-            num_classes=dataset_config.num_classes,
+            num_classes=configs.num_classes,
         )
 
 

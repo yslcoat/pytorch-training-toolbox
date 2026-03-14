@@ -26,6 +26,28 @@ def _calculate_total_scheduler_iters(
     return configs.optim.epochs * len(train_loader)
 
 
+def _assert_step_unit_bounds(
+    configs: TrainingConfig,
+    value: int | None,
+    *,
+    name: str,
+) -> int | None:
+    if value is None:
+        return None
+
+    if value <= 0:
+        raise ValueError(f"{name} must be > 0, got {value}")
+
+    if configs.optim.scheduler_step_unit == "epoch" and value > configs.optim.epochs:
+        raise ValueError(
+            f"{name} is specified as {value} but scheduler_step_unit='epoch' "
+            f"limits all schedule lengths to <= epochs ({configs.optim.epochs})."
+            f" Use scheduler_step_unit='step' for per-iteration values."
+        )
+
+    return value
+
+
 class SchedulerBuilder(Protocol):
     def build(
         self,
@@ -55,7 +77,11 @@ class LinearLRBuilder(SchedulerBuilder):
         else:
             linear_config = scheduler_config
 
-        total_iters = linear_config.total_iters
+        total_iters = _assert_step_unit_bounds(
+            configs,
+            linear_config.total_iters,
+            name="LinearLRConfig.total_iters",
+        )
         if total_iters is None:
             total_iters = _calculate_total_scheduler_iters(configs, train_loader)
         if total_iters <= 0:
@@ -91,6 +117,11 @@ class CosineAnnealingLRBuilder(SchedulerBuilder):
             cosine_config = scheduler_config
 
         t_max = cosine_config.t_max
+        t_max = _assert_step_unit_bounds(
+            configs,
+            t_max,
+            name="CosineAnnealingLRConfig.t_max",
+        )
         if t_max is None:
             t_max = _calculate_total_scheduler_iters(configs, train_loader)
         if t_max <= 0:
@@ -138,6 +169,12 @@ class LinearThenCosineAnnealingLRBuilder(SchedulerBuilder):
                 warmup_iters = configs.optim.warmup_iters
             else:
                 warmup_iters = max(1, total_scheduler_iters // 10)
+        else:
+            warmup_iters = _assert_step_unit_bounds(
+                configs,
+                warmup_iters,
+                name="LinearThenCosineAnnealingLRConfig.warmup_iters",
+            )
 
         if warmup_iters <= 0:
             raise ValueError(
@@ -153,6 +190,11 @@ class LinearThenCosineAnnealingLRBuilder(SchedulerBuilder):
             )
 
         cosine_t_max = combo_config.cosine_t_max
+        cosine_t_max = _assert_step_unit_bounds(
+            configs,
+            cosine_t_max,
+            name="LinearThenCosineAnnealingLRConfig.cosine_t_max",
+        )
         if cosine_t_max is None:
             cosine_t_max = total_scheduler_iters - warmup_iters
         if cosine_t_max <= 0:

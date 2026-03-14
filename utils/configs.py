@@ -9,7 +9,7 @@ class FeedForwardNetworkConfig:
     input_size: int = 784
     n_layers: int = 3
     hidden_dim: int = 256
-    output_dim: int = 10
+    num_classes: int = 10
     dropout: float = 0.1
 
 
@@ -33,7 +33,6 @@ class DummyDatasetConfig:
     n_samples: int = 10000
     val_n_samples: int = 0
     inputs_tensor_shape: list[int] = field(default_factory=lambda: [784])
-    num_classes: int = 10
 
     def __post_init__(self):
         if self.n_samples <= 0:
@@ -280,6 +279,7 @@ class DataLoaderConfig:
     shuffle: bool = True
     num_workers: int = 4
     pin_memory: bool = True
+    collate_fn: str | None = None
 
 
 @dataclass
@@ -347,3 +347,12 @@ class TrainingConfig:
     optimizer_config: OptimizerConfigs | None
     scheduler_config: SchedulerConfigs | None
     metrics_config: Dict[str, Any]
+
+    @property
+    def num_classes(self) -> int:
+        if hasattr(self.model_config, "num_classes"):
+            return int(self.model_config.num_classes)
+        raise ValueError(
+            "Could not resolve num_classes from model or dataset config. "
+            "Expected model_config.num_classes or dataset_config.num_classes."
+        )
