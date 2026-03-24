@@ -104,7 +104,6 @@ class ImageNetDataset(Dataset):
         return readable_classes, class_to_idx
 
     def load_image(self, index: int) -> Image.Image:
-        "Opens an image via a path and returns it."
         image_path = self.img_paths[index]
         return Image.open(image_path).convert("RGB")
 
@@ -126,7 +125,7 @@ class ImageNetDataset(Dataset):
         "Returns the total number of samples."
         return len(self.img_paths)
 
-    def __getitem__(self, index: int) -> Tuple[torch.Tensor, int]:
+    def __getitem__(self, index: int) -> Tuple[torch.Tensor, int]: # TODO: fix return type
         "Returns one sample of data, data and label (X, y)."
         img = self.load_image(index)
         class_name = self.img_paths[
