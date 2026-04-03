@@ -66,59 +66,38 @@ class ConvLSTMCell(nn.Module):
         dtype = self.conv.weight.dtype
         return (torch.zeros(batch_size, self.hidden_dim, *spatial_shape, device=device, dtype=dtype),
                 torch.zeros(batch_size, self.hidden_dim, *spatial_shape, device=device, dtype=dtype))
-    
 
-class ConvLSTM(nn.Module):
-    def __init__(self, spatial_dim, input_dim, hidden_dim, kernel_size, num_layers, bias=True):
+
+class ConvLSTMLayer(nn.Module):
+    def __init__(self, spatial_dim, input_dim, hidden_dim, kernel_size, bias=True):
         super().__init__()
-        self.num_layers = num_layers
-        self.cells = nn.ModuleList()
+        self.cell = ConvLSTMCell(spatial_dim, input_dim, hidden_dim, kernel_size, bias)
 
-        for i in range(num_layers):
-            cur_input_dim = input_dim if i == 0 else hidden_dim
-            self.cells.append(
-                ConvLSTMCell(spatial_dim, cur_input_dim, hidden_dim, kernel_size, bias)
-            )
-
-    def forward(self, x, hidden_state=None, return_all_layers=False):
+    def forward(self, x, hidden_state=None):
         """
         Args:
             x: Input tensor of shape (Batch, Seq_Len, Channels, *Spatial_Dims)
-            return_all_layers: If True, returns outputs from all layers; otherwise only the final layer.
 
         Returns:
-            output: List of tensors (one per layer) if return_all_layers, else a single tensor.
-                    Each tensor has shape (Batch, Seq_Len, hidden_dim, *Spatial_Dims).
-            last_states: List of (h, c) tuples, one per layer.
+            output: Tensor of shape (Batch, Seq_Len, hidden_dim, *Spatial_Dims)
+            (h, c): Final hidden and cell state.
         """
-        # x.shape = (B, Seq, C, [L], [H, W], or [D, H, W])
         batch_size = x.size(0)
         seq_len = x.size(1)
-        spatial_shape = x.shape[3:] # Dynamically grab all dimensions after C
+        spatial_shape = x.shape[3:]
 
         if hidden_state is None:
-            hidden_state = [cell.init_hidden(batch_size, spatial_shape) for cell in self.cells]
+            hidden_state = self.cell.init_hidden(batch_size, spatial_shape)
 
-        layer_output_list = []
-        last_state_list = []
-        x_inner: list = []
+        h, c = hidden_state
+        output = []
 
-        for layer_idx, cell in enumerate(self.cells):
-            h, c = hidden_state[layer_idx]
-            output_inner = []
+        for t in range(seq_len):
+            h, c = self.cell(x[:, t], (h, c))
+            output.append(h)
 
-            for t in range(seq_len):
-                input_t = x[:, t, ...] if layer_idx == 0 else x_inner[t]
-                h, c = cell(input_t, (h, c))
-                output_inner.append(h)
+        return torch.stack(output, dim=1), (h, c)
 
-            x_inner = output_inner
-            layer_output_list.append(torch.stack(output_inner, dim=1))
-            last_state_list.append((h, c))
-
-        output = layer_output_list if return_all_layers else layer_output_list[-1]
-        return output, last_state_list
-    
 
 if __name__ == "__main__":
     BATCH_SIZE = 32
@@ -126,16 +105,14 @@ if __name__ == "__main__":
     CHANNELS = 3
     HIDDEN_DIM = 16
     KERNEL_SIZE = 3
-    NUM_LAYERS = 2
     HEIGHT = 64
     WIDTH = 64
 
-    model = ConvLSTM(
+    model = ConvLSTMLayer(
         spatial_dim=2,
         input_dim=CHANNELS,
         hidden_dim=HIDDEN_DIM,
         kernel_size=KERNEL_SIZE,
-        num_layers=NUM_LAYERS
     )
 
     input_tensor = torch.randn(BATCH_SIZE, SEQ_LEN, CHANNELS, HEIGHT, WIDTH)
